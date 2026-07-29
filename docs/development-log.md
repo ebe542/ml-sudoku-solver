@@ -274,3 +274,101 @@ All tests passed.
 ```
 33 passed
 ```
+
+---
+## Commit 9 — Baseline Random Forest Model
+
+**Commit:** `feat: add baseline random forest model`
+
+### Objective
+
+Introduce the first machine learning model for the Sudoku prediction pipeline.
+
+The goal is to establish a baseline that can predict the correct digit for a selected empty Sudoku cell based on the current puzzle
+state.
+
+### Model
+
+A `RandomForestClassifier` from scikit-learn is used as the first baseline model.
+
+The model is wrapped in `SudokuRandomForest` to separate the model implementation from the rest of the application.
+
+### Pipeline
+
+```text
+Training Data
+      │
+      ▼
+X_train / y_train
+      │
+      ▼
+Random Forest Classifier
+      │
+      ▼
+     fit()
+      │
+      ▼
+Trained Model
+      │
+      ▼
+    X_test
+      │
+      ▼
+ Predictions
+      │
+      ▼
+   Accuracy
+```
+
+### Implemented
+
++ Added the `SudokuRandomForest` model wrapper.
++ Added Random Forest training.
++ Added digit prediction.
++ Added model evaluation using accuracy.
++ Added configurable number of estimators.
++ Added reproducible model training through a random seed.
++ Added model tests for training and prediction.
++ Added validation that predictions are valid Sudoku digits.
+
+
+### Baseline Experiment
+
+The initial baseline was evaluated using:
+
+```text
+Number of solved Sudoku solutions: 100
+Training/test split: 80% / 20%
+Training samples: 3,200
+Test samples: 800
+Random Forest estimators: 100
+Random seed: 42
+```
+
+### Result
+
+The baseline achieved:
+
+```text
+Test accuracy: 11.75%
+```
+
+There are nine possible Sudoku digits (1–9), so a uniform random classifier would achieve approximately 11.11% (1 / 9) accuracy.
+
+The baseline therefore performs only slightly better than random prediction.
+
+### Interpretation
+
+The result shows that the current feature representation does not provide enough information for the Random Forest to reliably infer the
+correct Sudoku digit.
+
+The model currently receives the Sudoku grid and the target cell position, but the Sudoku constraints are not explicitly represented
+as features.
+
+This provides a useful baseline for future feature engineering and model improvements.
+
+### Important Limitation
+
+This accuracy measures cell-level digit prediction.
+
+It does not represent the accuracy of a complete Sudoku solver.
