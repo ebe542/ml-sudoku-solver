@@ -2,21 +2,41 @@
 
 ## Current Pipeline
 
-```text
-SudokuGrid
-    │
-    ▼
-Synthetic Dataset Generator
-    │
-    ▼
-SudokuDataset
-    │
-    ▼
-Feature Preprocessing
-    │
-    ▼
-Machine Learning Model
-    │
-    ▼
-Predicted Digits
+
+```
+        ┌─────────────────────┐
+        │ SudokuGrid          │
+        │ Representation &    │
+        │ Validation          │
+        └──────────┬──────────┘
+                   │
+        ┌──────────▼──────────┐
+        │ Sudoku Generator    │
+        │ Generate complete   │
+        │ valid Sudokus       │
+        └──────────┬──────────┘
+                   │
+                   ▼
+        ┌─────────────────────┐
+        │ Dataset Generator   │
+        │ Remove cells /      │
+        │ create puzzles      │
+        └──────────┬──────────┘
+                   │
+                   ▼
+        ┌─────────────────────┐
+        │ SudokuDataset       │
+        └──────────┬──────────┘
+                   │
+                   ▼
+        ┌─────────────────────┐
+        │ Feature             │
+        │ Preprocessing       │
+        └──────────┬──────────┘
+                   │
+                   ▼
+        ┌─────────────────────┐
+        │ ML Model            │
+        │ (not implemented)   │
+        └─────────────────────┘
 ```

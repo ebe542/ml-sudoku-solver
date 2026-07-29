@@ -1,7 +1,10 @@
 import numpy as np
 import pytest
 
-from sudoku_ml.dataset.generator import create_dataset
+from sudoku_ml.dataset.generator import (
+    create_dataset,
+    create_diverse_dataset,
+)
 from sudoku_ml.grid import SudokuGrid
 
 
@@ -78,3 +81,66 @@ def test_incomplete_source_grid_is_rejected() -> None:
 
     with pytest.raises(ValueError):
         create_dataset(grid)
+
+def test_diverse_dataset_has_expected_shape() -> None:
+    dataset = create_diverse_dataset(
+        num_samples=10,
+        removal_rate=0.5,
+        random_seed=42,
+    )
+
+    assert dataset.puzzles.shape == (10, 9, 9)
+    assert dataset.solutions.shape == (10, 9, 9)
+
+
+def test_diverse_dataset_contains_valid_solutions() -> None:
+    dataset = create_diverse_dataset(
+        num_samples=10,
+        removal_rate=0.5,
+        random_seed=42,
+    )
+
+    for solution in dataset.solutions:
+        grid = SudokuGrid(solution)
+
+        assert grid.is_complete()
+        assert grid.is_valid()
+
+
+def test_diverse_dataset_contains_different_solutions() -> None:
+    dataset = create_diverse_dataset(
+        num_samples=10,
+        removal_rate=0.5,
+        random_seed=42,
+    )
+
+    unique_solutions = {
+        solution.tobytes()
+        for solution in dataset.solutions
+    }
+
+    assert len(unique_solutions) == 10
+
+
+def test_diverse_dataset_is_reproducible() -> None:
+    first = create_diverse_dataset(
+        num_samples=10,
+        removal_rate=0.5,
+        random_seed=42,
+    )
+
+    second = create_diverse_dataset(
+        num_samples=10,
+        removal_rate=0.5,
+        random_seed=42,
+    )
+
+    np.testing.assert_array_equal(
+        first.puzzles,
+        second.puzzles,
+    )
+
+    np.testing.assert_array_equal(
+        first.solutions,
+        second.solutions,
+    )
