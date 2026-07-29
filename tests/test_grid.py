@@ -54,3 +54,52 @@ def test_invalid_value_raises_error() -> None:
 
     with pytest.raises(ValueError):
         SudokuGrid(values)
+
+
+def test_valid_sudoku_grid() -> None:
+    values = np.array(
+        [
+            [5, 3, 0, 0, 7, 0, 0, 0, 0],
+            [6, 0, 0, 1, 9, 5, 0, 0, 0],
+            [0, 9, 8, 0, 0, 0, 0, 6, 0],
+            [8, 0, 0, 0, 6, 0, 0, 0, 3],
+            [4, 0, 0, 8, 0, 3, 0, 0, 1],
+            [7, 0, 0, 0, 2, 0, 0, 0, 6],
+            [0, 6, 0, 0, 0, 0, 2, 8, 0],
+            [0, 0, 0, 4, 1, 9, 0, 0, 5],
+            [0, 0, 0, 0, 8, 0, 0, 7, 9],
+        ]
+    )
+    grid = SudokuGrid(values)
+
+    assert grid.is_valid()
+
+
+def test_duplicate_in_row_is_invalid() -> None:
+    values = np.zeros((9, 9), dtype=int)
+    values[0, 0] = 5
+    values[0, 1] = 5
+
+    grid = SudokuGrid(values)
+
+    assert not grid.is_valid()
+
+
+def test_duplicate_in_column_is_invalid() -> None:
+    values = np.zeros((9, 9), dtype=int)
+    values[0, 0] = 5
+    values[1, 0] = 5
+
+    grid = SudokuGrid(values)
+
+    assert not grid.is_valid()
+
+
+def test_duplicate_in_block_is_invalid() -> None:
+    values = np.zeros((9, 9), dtype=int)
+    values[0, 0] = 5
+    values[1, 1] = 5
+
+    grid = SudokuGrid(values)
+
+    assert not grid.is_valid()
