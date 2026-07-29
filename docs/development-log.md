@@ -187,3 +187,90 @@ Remove random cells
         ▼
 Incomplete Sudoku puzzle
 ```
+
+---
+## Commit 8 — Train/Test Data Preparation
+
+**Commit:** `feat: add train test data preparation`
+
+### Objective
+
+Prepare the generated Sudoku data for machine learning by creating separate training and test datasets.
+
+### Approach
+
+The data is split at the level of complete Sudoku solutions rather than individual cells.
+
+This prevents puzzles derived from the same solution from being distributed across both training and test data.
+
+```text
+Generated Sudoku solutions
+            │
+            ▼
+      Solution-level split
+            │
+       ┌────┴────┐
+       ▼         ▼
+    Training    Test
+       │         │
+       ▼         ▼
+    Puzzles   Puzzles
+       │         │
+       ▼         ▼
+   Features   Features
+       │         │
+       ▼         ▼
+   X_train    X_test
+   y_train    y_test
+```
+
+**Implemented**
+
++ Added `MLDataSplit`.
++ Added train/test data preparation.
++ Added configurable test set size.
++ Added reproducible splitting using a random seed.
++ Added validation of split parameters.
++ Reused the existing diverse Sudoku dataset generator.
++ Reused the existing feature preprocessing pipeline.
+
+### Data Representation
+
+The resulting data is separated into:
+
+```
+X_train → training features
+y_train → training targets
+
+X_test  → test features
+y_test  → test targets
+```
+
+Each feature vector contains:
+
+```
+81 Sudoku cell values
++
+1 target cell position
+```
+
+### Data Leakage Consideration
+
+The split is performed before converting the puzzles into cell-level machine learning samples.
+
+This is important because one Sudoku solution can produce multiple incomplete puzzles. Splitting individual cell samples could allow
+related puzzles to appear in both the training and test sets. 
+
+By splitting complete solutions first, the test set contains Sudoku structures that were not used to create the training data.
+
+**Reproducibility**
+
+The split accepts a random seed. Using the same seed produces the same training and test sets.
+
+Testing
+
+All tests passed.
+
+```
+33 passed
+```
