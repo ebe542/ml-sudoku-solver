@@ -18,6 +18,7 @@ class SolverEvaluationResult:
     deterministic_steps: int
     ml_decisions: int
     backtracks: int
+    matching_solutions: int | None = None
 
     @property
     def solution_rate(self) -> float:
@@ -59,17 +60,41 @@ class SolverEvaluationResult:
 
         return self.ml_decisions / self.total_puzzles
 
+    @property
+    def matching_solution_rate(self) -> float | None:
+        """Return the rate of solutions matching supplied ground truth."""
+        if self.matching_solutions is None:
+            return None
 
-def evaluate_solver(solver: HybridSudokuSolver, puzzles: np.ndarray) -> SolverEvaluationResult:
+        if self.total_puzzles == 0:
+            return 0.0
+
+        return self.matching_solutions / self.total_puzzles
+
+
+def evaluate_solver(
+    solver: HybridSudokuSolver,
+    puzzles: np.ndarray,
+    expected_solutions: np.ndarray | None = None,
+) -> SolverEvaluationResult:
     """Evaluate the hybrid solver on multiple Sudoku puzzles."""
+    if (
+        expected_solutions is not None
+        and len(expected_solutions) != len(puzzles)
+    ):
+        raise ValueError(
+            "Expected solutions must match the number of puzzles."
+        )
+
     solved_puzzles = 0
     valid_solutions = 0
+    matching_solutions = 0 if expected_solutions is not None else None
     total_runtime_seconds = 0.0
     deterministic_steps = 0
     ml_decisions = 0
     backtracks = 0
 
-    for puzzle_values in puzzles:
+    for puzzle_index, puzzle_values in enumerate(puzzles):
         puzzle = SudokuGrid(puzzle_values)
 
         start_time = perf_counter()
@@ -89,6 +114,15 @@ def evaluate_solver(solver: HybridSudokuSolver, puzzles: np.ndarray) -> SolverEv
                 and preserves_given_digits):
                 valid_solutions += 1
 
+            if (
+                matching_solutions is not None
+                and np.array_equal(
+                    solution.values,
+                    expected_solutions[puzzle_index],
+                )
+            ):
+                matching_solutions += 1
+
         deterministic_steps += solver.stats.deterministic_steps
         ml_decisions += solver.stats.ml_decisions
         backtracks += solver.stats.backtracks
@@ -101,4 +135,5 @@ def evaluate_solver(solver: HybridSudokuSolver, puzzles: np.ndarray) -> SolverEv
         deterministic_steps=deterministic_steps,
         ml_decisions=ml_decisions,
         backtracks=backtracks,
+        matching_solutions=matching_solutions,
     )

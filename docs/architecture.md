@@ -235,6 +235,7 @@ Contains reusable evaluation logic, including:
 - deterministic-step, ML-decision, and backtracking statistics.
 - direct comparison of ML-guided and classical candidate ordering on identical puzzle sets.
 - comparison across multiple removal rates with a separately trained model for each rate.
+- exact ground-truth matching for uniquely solvable evaluation puzzles.
 
 ### Analysis
 
@@ -348,6 +349,26 @@ Search effort increased with the removal rate:
 
 Backtracks and ML decisions are averages per puzzle. The results show that ML guidance can reduce search effort, but its relative benefit is not monotonic and does not offset inference cost.
 
+### Unique-Solution Evaluation
+
+The general solver evaluation optionally accepts expected solution grids. When ground truth is supplied, `matching_solutions` counts exact grid matches and `matching_solution_rate` reports their proportion. Existing evaluations that do not provide expected solutions remain unchanged.
+
+The unique-solution experiment trains the Random Forest on the existing random-removal training pipeline and evaluates both solvers on identical puzzles from `create_unique_dataset()`:
+
+| Removal rate | Hybrid match | Classical match | Hybrid runtime | Classical runtime | Runtime ratio |
+|---:|---:|---:|---:|---:|---:|
+| 50% | 100.00% | 100.00% | 0.66 ms | 0.68 ms | 0.97x |
+| 60% | 100.00% | 100.00% | 12.32 ms | 1.64 ms | 7.51x |
+| 65% | 100.00% | 100.00% | 52.14 ms | 3.54 ms | 14.74x |
+
+| Removal rate | Hybrid backtracks | Classical backtracks | Reduction | Hybrid ML decisions |
+|---:|---:|---:|---:|---:|
+| 50% | 0.00 | 0.00 | 0.00% | 0.00 |
+| 60% | 7.10 | 6.60 | -7.58% | 0.70 |
+| 65% | 27.00 | 52.70 | 48.77% | 3.30 |
+
+All search-effort values are averages per puzzle. Exact match rates of 100% confirm that both solvers reproduce the unique ground truth. The hybrid ordering is not uniformly better: it increases backtracking slightly at 60% but reduces it substantially at 65%.
+
 ## Current Limitation
 
-The current evaluation covers 20 puzzles per removal rate and one pair of random seeds. Puzzle difficulty is approximated through the number of removed cells; the generator does not assign formal difficulty ratings or guarantee unique solutions. Repeated experiments with more seeds and larger evaluation sets are required for statistically stronger conclusions.
+The original removal-rate evaluation covers 20 potentially non-unique puzzles per rate, while the unique-solution evaluation covers 10 puzzles per rate and one pair of random seeds. Puzzle difficulty is still approximated through the number of removed cells rather than a formal rating. Repeated experiments with more seeds and larger unique evaluation sets are required for statistically stronger conclusions.

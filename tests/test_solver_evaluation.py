@@ -25,6 +25,7 @@ def test_solver_evaluation_calculates_summary_metrics() -> None:
     assert result.average_runtime_seconds == pytest.approx(0.2)
     assert result.average_backtracks == pytest.approx(2.0)
     assert result.average_ml_decisions == pytest.approx(4.0)
+    assert result.matching_solution_rate is None
 
 
 def test_solver_evaluation_handles_empty_evaluation() -> None:
@@ -43,6 +44,7 @@ def test_solver_evaluation_handles_empty_evaluation() -> None:
     assert result.average_runtime_seconds == 0.0
     assert result.average_backtracks == 0.0
     assert result.average_ml_decisions == 0.0
+    assert result.matching_solution_rate is None
 
 
 def test_evaluate_solver_evaluates_multiple_puzzles() -> None:
@@ -68,6 +70,7 @@ def test_evaluate_solver_evaluates_multiple_puzzles() -> None:
     result = evaluate_solver(
         solver,
         evaluation_dataset.puzzles,
+        evaluation_dataset.solutions,
     )
 
     assert result.total_puzzles == 3
@@ -79,4 +82,23 @@ def test_evaluate_solver_evaluates_multiple_puzzles() -> None:
     assert result.ml_decisions == 0
     assert result.backtracks == 0
     assert result.total_runtime_seconds >= 0.0
-    assert result.average_ml_decisions == 0.0
+    assert result.matching_solutions == 3
+    assert result.matching_solution_rate == pytest.approx(1.0)
+
+
+def test_evaluate_solver_rejects_mismatched_solutions() -> None:
+    training_data = create_train_test_split(
+        num_solutions=10,
+        random_seed=42,
+    )
+    model = SudokuRandomForest(n_estimators=5, random_seed=42)
+    model.fit(training_data)
+
+    solver = HybridSudokuSolver(model)
+
+    with pytest.raises(ValueError, match="match the number of puzzles"):
+        evaluate_solver(
+            solver,
+            training_data.X_test[:2],
+            training_data.y_test[:1],
+        )

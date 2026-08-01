@@ -1367,3 +1367,138 @@ The unique generator is available as an alternative dataset source. Existing bas
 ### Conclusion
 
 The project can now distinguish unsolvable, uniquely solvable, and non-unique Sudoku puzzles. It can also generate reproducible datasets whose puzzles have exactly one solution, enabling stronger end-to-end evaluation in the next commit.
+
+---
+## Commit 22 - Evaluation on Unique-Solution Puzzles
+
+**Commit:** `feat: evaluate solvers on unique-solution puzzles`
+
+### Objective
+
+Evaluate the hybrid and classical solvers on puzzles with exactly one solution and verify that each produced grid matches the unique stored ground truth.
+
+### Motivation
+
+Previous evaluations counted a completed grid as successful when it was valid and preserved all clues. For a puzzle with multiple solutions, that grid could differ from the source solution while still being correct.
+
+Unique-solution evaluation strengthens the success criterion:
+
+```text
+Valid completion
+      +
+Preserves all clues
+      +
+Exactly matches unique ground truth
+      =
+Verified solution
+```
+
+### Evaluation Extension
+
+`evaluate_solver()` now accepts optional expected solution grids. When supplied, it records:
+
+- the number of exact solution matches,
+- the exact matching-solution rate.
+
+The argument is optional, so existing baseline, difficulty, and comparison evaluations remain compatible. A length check prevents puzzles and expected solutions from being paired incorrectly.
+
+`compare_solvers()` forwards the same optional ground truth to both solver evaluations, preserving a fair comparison.
+
+### Unique Evaluation Pipeline
+
+For every removal rate:
+
+1. Generate the existing random-removal training split.
+2. Train a Random Forest for that removal rate.
+3. Generate a separate unique-solution evaluation dataset.
+4. Solve the same puzzles with hybrid and classical ordering.
+5. Compare each result with the unique ground truth.
+6. Report runtime, search effort, and exact match rates.
+
+Training remains on the original faster random-removal dataset. Only evaluation uses uniqueness-preserving generation in this commit. This isolates the effect of a stronger evaluation set without simultaneously changing the training distribution.
+
+### Implemented
+
+- Added optional expected solutions to the reusable solver evaluation.
+- Added exact solution-match counts and rates.
+- Added validation for mismatched puzzle and solution collections.
+- Extended solver comparison to forward shared ground truth.
+- Added evaluation across multiple unique-puzzle removal rates.
+- Added a command-line experiment for unique-solution evaluation.
+- Added integration and parameter-validation tests.
+
+### Usage
+
+Run the experiment from the project root:
+
+```bash
+python scripts/evaluate_unique_solvers.py
+```
+
+### Evaluation Configuration
+
+```text
+Removal rates: 0.50, 0.60, 0.65
+Training solutions per rate: 100
+Evaluation puzzles per rate: 10
+Random Forest estimators: 100
+Training random seed: 42
+Evaluation random seed: 123
+Training data: random-removal puzzles
+Evaluation data: unique-solution puzzles
+```
+
+### Solution Quality and Runtime
+
+| Removal rate | Hybrid match | Classical match | Hybrid runtime | Classical runtime | Runtime ratio |
+|---:|---:|---:|---:|---:|---:|
+| 50% | 100.00% | 100.00% | 0.66 ms | 0.68 ms | 0.97x |
+| 60% | 100.00% | 100.00% | 12.32 ms | 1.64 ms | 7.51x |
+| 65% | 100.00% | 100.00% | 52.14 ms | 3.54 ms | 14.74x |
+
+### Search Effort
+
+Backtracks and ML decisions are averages per puzzle.
+
+| Removal rate | Hybrid backtracks | Classical backtracks | Reduction | Hybrid ML decisions |
+|---:|---:|---:|---:|---:|
+| 50% | 0.00 | 0.00 | 0.00% | 0.00 |
+| 60% | 7.10 | 6.60 | -7.58% | 0.70 |
+| 65% | 27.00 | 52.70 | 48.77% | 3.30 |
+
+### Interpretation
+
+Both solvers exactly matched the unique ground truth for every evaluated puzzle. This confirms that the previous distinction between a merely valid completion and the stored solution has been removed for this evaluation set.
+
+At a removal rate of 0.50, all puzzles were solved deterministically and the model was not used. At 0.60, ML guidance slightly increased average backtracking from 6.60 to 7.10, corresponding to a negative reduction of 7.58%. At 0.65, ML guidance reduced average backtracking from 52.70 to 27.00, an improvement of 48.77%.
+
+The result reinforces that ML candidate ordering is not uniformly beneficial. Its value depends on the puzzle distribution and search state. The classical solver remains faster at the rates where ML inference is used.
+
+The near-equal sub-millisecond runtimes at 0.50 should not be interpreted as a meaningful hybrid speed advantage because no ML decisions occur and such short measurements are sensitive to timing noise.
+
+### Testing
+
+The additional tests cover:
+
+- exact ground-truth matching,
+- backward-compatible evaluation without ground truth,
+- mismatched puzzle and solution lengths,
+- unique evaluation integration,
+- empty and invalid removal-rate collections,
+- invalid evaluation puzzle counts.
+
+Result:
+
+`120 passed`
+
+### Limitations
+
+- Only 10 unique puzzles are evaluated per removal rate.
+- Results use one training seed and one evaluation seed.
+- Training data is not uniqueness-preserving.
+- Removal rate remains a proxy rather than a formal difficulty measure.
+- Runtime measurements are single-run values.
+
+### Conclusion
+
+The evaluation pipeline can now verify exact solver output against an unambiguous ground truth. Both solvers achieved a 100% exact match rate in the current experiment, while the search-effort results show that ML guidance can help substantially at some removal rates but can also be neutral or slightly harmful at others.

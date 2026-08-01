@@ -145,6 +145,14 @@ dataset = create_unique_dataset(
 
 The uniqueness-preserving generator removes a clue only when the puzzle still has exactly one solution. Solution counting stops after a second solution is found because that is sufficient to classify a puzzle as non-unique.
 
+### Evaluate on Unique-Solution Puzzles
+
+```bash
+python scripts/evaluate_unique_solvers.py
+```
+
+Compares the hybrid and classical solvers on identical uniquely solvable puzzles at removal rates of 0.50, 0.60, and 0.65. In addition to validity, the evaluation checks whether each solver output exactly matches the unique stored solution.
+
 ## Hybrid Solver
 
 `HybridSudokuSolver` solves complete puzzles while preserving Sudoku validity. It selects constrained cells first, ranks ambiguous candidates with the trained Random Forest, and uses backtracking when a prediction leads to a dead end.
