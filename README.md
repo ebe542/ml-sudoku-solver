@@ -218,6 +218,16 @@ Evaluates the Random Forest's complete probability ranking on the hold-out test 
 
 In the current 800-sample evaluation, the correct digit appears in the first two positions in 90.00% of predictions and in the first three positions in 97.50%. Applying Sudoku candidate constraints leaves Top-k accuracy almost unchanged but reduces expected calibration error from 0.3093 to 0.0801 and log loss from 1.1396 to 0.6960.
 
+### Compare Feature Groups
+
+```bash
+python scripts/evaluate_feature_ablation.py
+```
+
+Trains three separate Random Forest models on the same data while progressively adding grid and position features, candidate indicators, and candidate-interaction features. The experiment measures the contribution of each feature group to ranking and probability quality.
+
+Without explicit Sudoku features, Top-1 accuracy is 11.38%, approximately the random baseline for nine digits. Candidate indicators raise it to 50.38%, and candidate interactions raise it further to 66.88%. This shows that domain-specific feature engineering provides most of the model's predictive ability.
+
 ## Hybrid Solver
 
 `HybridSudokuSolver` solves complete puzzles while preserving Sudoku validity. It selects constrained cells first, ranks ambiguous candidates with the trained Random Forest, and uses backtracking when a prediction leads to a dead end.

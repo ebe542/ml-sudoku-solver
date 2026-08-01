@@ -248,7 +248,8 @@ Contains tools for understanding model behavior, including:
 - Top-k probability-ranking analysis,
 - mean reciprocal rank,
 - confidence calibration and log loss,
-- comparison of raw and candidate-constrained probabilities.
+- comparison of raw and candidate-constrained probabilities,
+- feature-ablation analysis across the 82-, 91-, and 118-feature representations.
 
 ### Hybrid Solver
 
@@ -549,8 +550,45 @@ Candidate constraints do not change which digit is ranked first in this evaluati
 
 The 90.00% Top-2 and 97.50% Top-3 accuracies explain why ML-guided backtracking is useful even though Top-1 accuracy is only 66.88%. When the first choice fails, the correct digit is usually near the top of the remaining search order.
 
+### Feature-Ablation Analysis
+
+The feature-ablation analysis trains a separate Random Forest for each cumulative feature representation. Every model uses the same training and test samples, estimator count, and random seed. Only the number of input columns changes:
+
+```text
+82 features
+Grid + target position
+          |
+          v
+91 features
++ candidate indicators
+          |
+          v
+118 features
++ candidate interactions
+```
+
+`select_features()` selects a validated prefix of the complete 118-feature array. `evaluate_feature_ablation()` then trains and evaluates each configuration independently and stores its probability-ranking metrics in a `FeatureAblationResult`.
+
+The controlled experiment produced:
+
+| Feature configuration | Features | Top-1 | Top-2 | Top-3 | MRR |
+|---|---:|---:|---:|---:|---:|
+| Grid and position | 82 | 11.38% | 25.75% | 35.25% | 0.3206 |
+| Candidate indicators | 91 | 50.38% | 83.12% | 96.25% | 0.7203 |
+| Candidate interactions | 118 | 66.88% | 90.00% | 97.50% | 0.8152 |
+
+| Feature configuration | Mean confidence | ECE | Log loss |
+|---|---:|---:|---:|
+| Grid and position | 18.15% | 0.0677 | 2.2797 |
+| Candidate indicators | 43.05% | 0.0908 | 1.0251 |
+| Candidate interactions | 36.28% | 0.3093 | 1.1396 |
+
+Grid values and target position alone yield 11.38% Top-1 accuracy, close to the 11.11% random baseline for nine balanced classes. Adding candidate indicators produces the largest improvement, while candidate interactions further improve ranking among the valid digits.
+
+The complete feature set has the best ranking but worse raw ECE and log loss than the 91-feature model. Ranking quality and probability calibration are different properties: the interaction features improve class ordering but produce underconfident raw probabilities. The low ECE of the weak 82-feature model does not indicate useful predictions; it mainly reflects that low confidence is consistent with low accuracy.
+
 ## Current Limitation
 
 The current Random Forest cannot reliably solve ambiguous puzzles without correction: Greedy exact match falls to 55% at 60% removal and 25% at 65% removal. Its 66.88% Top-1 accuracy is useful for search ordering but is insufficient for an unrecoverable decision sequence. The model remains a cell-level classifier rather than an end-to-end grid model.
 
-The probability experiment uses one hold-out split at a removal rate of 0.50. Ranking and calibration should therefore be repeated across random seeds and harder puzzle configurations. An ablation experiment without candidate indicators and candidate-interaction features is also needed to separate learned grid patterns from the benefit of explicitly encoded Sudoku rules.
+The probability and ablation experiments use one hold-out split at a removal rate of 0.50. Ranking, calibration, and feature contributions should therefore be repeated across random seeds and harder puzzle configurations. The ablation shows that the raw grid contributes little predictive ability by itself and that most performance comes from explicitly encoded Sudoku constraints.

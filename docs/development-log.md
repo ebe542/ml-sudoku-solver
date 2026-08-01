@@ -2210,3 +2210,145 @@ Perform a feature-ablation experiment that trains and evaluates the model withou
 ### Conclusion
 
 The model's probability ranking is substantially more informative than its Top-1 accuracy. Sudoku candidate constraints mainly improve probability quality rather than leading rank accuracy, while the strong Top-2 and Top-3 results provide a clear explanation for the effectiveness of ML-guided backtracking.
+
+---
+## Commit 28 - Feature-Ablation Analysis
+
+**Commit:** `feat: add feature ablation analysis`
+
+### Objective
+
+Measure how much each feature group contributes to the Random Forest's ranking performance and probability quality.
+
+### Motivation
+
+The complete 118-feature model reaches 66.88% Top-1 accuracy, but this result does not reveal whether the model learned Sudoku structure from the raw grid or mainly benefits from explicitly engineered constraint features.
+
+A controlled ablation progressively exposes the model to more information:
+
+```text
+Grid + target position
+          |
+          v
+Add candidate indicators
+          |
+          v
+Add candidate interactions
+```
+
+Each configuration is trained as a separate model. This prevents removed feature groups from influencing the result and isolates their incremental contribution.
+
+### Feature Configurations
+
+| Configuration | Included features | Count |
+|---|---|---:|
+| Grid and position | Flattened grid and target cell index | 82 |
+| Candidate indicators | Previous features plus nine valid-candidate flags | 91 |
+| Candidate interactions | Previous features plus row, column, and block candidate counts | 118 |
+
+The configuration names describe the newest feature group. Every later configuration includes all preceding groups.
+
+### Implemented
+
+- Added immutable feature-configuration definitions.
+- Added validated feature-prefix selection.
+- Added `FeatureAblationResult` for one trained configuration.
+- Added reusable training and evaluation across all feature groups.
+- Reused the probability-ranking metrics from Commit 27.
+- Added a command-line experiment with ranking and probability-quality tables.
+- Added unit tests for configuration, selection, validation, and evaluation.
+
+### Experimental Design
+
+All three Random Forest models use identical:
+
+- training and test Sudoku solutions,
+- target labels,
+- solution-level split,
+- removal rate,
+- estimator count,
+- random seed.
+
+Only the number of feature columns differs. The evaluation uses raw model probabilities so that all configurations, including the model without candidate indicators, are compared consistently.
+
+### Usage
+
+Run the experiment from the project root:
+
+```bash
+python scripts/evaluate_feature_ablation.py
+```
+
+### Evaluation Configuration
+
+```text
+Generated Sudoku solutions: 100
+Training samples: 3,200
+Evaluation samples: 800
+Training/test split: 80% / 20%
+Removal rate: 0.50
+Random Forest estimators: 100
+Random seed: 42
+```
+
+### Ranking Results
+
+| Feature configuration | Features | Top-1 | Top-2 | Top-3 | MRR |
+|---|---:|---:|---:|---:|---:|
+| Grid and position | 82 | 11.38% | 25.75% | 35.25% | 0.3206 |
+| Candidate indicators | 91 | 50.38% | 83.12% | 96.25% | 0.7203 |
+| Candidate interactions | 118 | 66.88% | 90.00% | 97.50% | 0.8152 |
+
+Adding candidate indicators improves Top-1 accuracy by 39.00 percentage points and MRR by 0.3997. Adding candidate interactions provides another 16.50 percentage points of Top-1 accuracy and increases MRR by 0.0949.
+
+The complete improvement from the 82-feature baseline to the 118-feature model is 55.50 percentage points in Top-1 accuracy.
+
+### Probability-Quality Results
+
+| Feature configuration | Mean confidence | ECE | Log loss |
+|---|---:|---:|---:|
+| Grid and position | 18.15% | 0.0677 | 2.2797 |
+| Candidate indicators | 43.05% | 0.0908 | 1.0251 |
+| Candidate interactions | 36.28% | 0.3093 | 1.1396 |
+
+### Interpretation
+
+The 82-feature model reaches 11.38% Top-1 accuracy, approximately the 11.11% random baseline for nine digits. Its 2.2797 log loss is also worse than the approximately 2.1972 loss of a uniform nine-class probability distribution. The Random Forest therefore learns little useful Sudoku-solving information from the flattened grid and target position alone.
+
+Candidate indicators create the largest improvement. They explicitly tell the model which digits remain legal according to row, column, and block constraints. Candidate interactions then help distinguish between several valid digits by describing candidate distributions in neighbouring cells.
+
+The full model provides the best ranking but not the best raw probability calibration. Its 66.88% Top-1 accuracy is paired with only 36.28% mean confidence, producing an ECE of 0.3093. The model is substantially underconfident even though its class ordering is useful.
+
+The low ECE of the 82-feature model must not be interpreted as strong model quality. ECE measures agreement between confidence and observed accuracy, not predictive usefulness. A weak model can be well calibrated if it is appropriately uncertain.
+
+### Testing
+
+The tests cover:
+
+- the three cumulative feature configurations,
+- selection of 82, 91, and 118 feature columns,
+- preservation of selected feature values,
+- rejection of unsupported feature counts,
+- rejection of arrays with insufficient columns,
+- evaluation of every configuration,
+- valid probability-ranking results for every trained model.
+
+Result:
+
+`176 passed`
+
+### Limitations
+
+- The experiment uses one training/test split and one random seed.
+- Only a removal rate of 0.50 is evaluated.
+- Feature groups are cumulative rather than evaluated in every possible combination.
+- Random Forest probabilities are evaluated without post-training calibration.
+- Cell-level ablation results do not directly measure complete-puzzle performance.
+
+### Next Step
+
+Repeat the feature-ablation experiment across several random seeds and removal rates. This will show whether the contribution of each feature group remains stable for harder and independently generated datasets.
+
+### Conclusion
+
+The Random Forest does not learn Sudoku effectively from raw grid values alone. Explicit candidate indicators provide the largest performance gain, while interaction features further improve ranking among valid digits. The experiment demonstrates that domain-specific feature engineering, rather than the classifier alone, is responsible for most of the current model quality.
