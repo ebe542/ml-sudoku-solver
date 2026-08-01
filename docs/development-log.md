@@ -1243,3 +1243,127 @@ Result:
 ### Conclusion
 
 The project now provides a complete user-facing path from a saved machine-learning model and an 81-cell Sudoku string to a valid formatted solution. The CLI also exposes solver statistics, making it suitable for both demonstration and further experiments.
+
+---
+## Commit 21 - Unique-Solution Puzzle Generation
+
+**Commit:** `feat: add unique-solution puzzle generation`
+
+### Objective
+
+Generate Sudoku puzzles with exactly one valid solution so that evaluation targets are unambiguous and solver results can be compared with a unique ground truth.
+
+### Motivation
+
+The original synthetic dataset generator removes randomly selected cells from complete Sudoku solutions. This preserves validity of the clues but does not guarantee that the incomplete puzzle has only one solution.
+
+A solver can therefore produce a valid completion that differs from the stored source solution. Unique-solution generation removes this ambiguity and creates a stronger foundation for future solver evaluation and difficulty analysis.
+
+### Solution Counting
+
+The solution counter uses deterministic backtracking with minimum-remaining-values cell selection:
+
+```text
+Select the empty cell with fewest candidates
+                  |
+                  v
+          Try valid candidates
+                  |
+                  v
+          Count completed grids
+                  |
+                  v
+        Stop when limit is reached
+```
+
+For uniqueness checks, the limit is two:
+
+```text
+0 solutions -> unsolvable
+1 solution  -> unique
+2 solutions -> non-unique, stop searching
+```
+
+Stopping after the second solution avoids enumerating every possible completion of an underconstrained puzzle.
+
+### Unique Puzzle Generation
+
+The generator starts with a complete valid Sudoku and considers cells in a seeded random order. For each cell:
+
+1. Remove the clue temporarily.
+2. Count solutions up to two.
+3. Keep the removal if exactly one solution remains.
+4. Restore the clue if multiple solutions appear.
+5. Stop when the requested number of removals is reached.
+
+If the requested removal rate cannot be reached while preserving uniqueness, the generator raises an error rather than silently returning fewer empty cells.
+
+### Implemented
+
+- Added bounded Sudoku solution counting.
+- Added `has_unique_solution()`.
+- Added minimum-remaining-values selection for the counting search.
+- Added early termination at a configurable solution limit.
+- Preserved input grids during solution counting.
+- Added reproducible uniqueness-preserving clue removal.
+- Added correct handling for a zero removal rate.
+- Added diverse unique-dataset generation.
+- Preserved complete solutions as ground truth.
+- Added validation for source grids, removal rates, solution limits, and sample counts.
+
+### Usage
+
+Generate one unique puzzle from a known solution:
+
+```python
+from sudoku_ml.dataset.unique_generator import create_unique_puzzle
+from sudoku_ml.sudoku_generator import generate_solved_grid
+
+solution = generate_solved_grid(random_seed=42)
+puzzle = create_unique_puzzle(
+    solution,
+    removal_rate=0.5,
+    random_seed=42,
+)
+```
+
+Generate a diverse dataset:
+
+```python
+from sudoku_ml.dataset.unique_generator import create_unique_dataset
+
+dataset = create_unique_dataset(
+    num_samples=100,
+    removal_rate=0.5,
+    random_seed=42,
+)
+```
+
+### Testing
+
+The tests cover:
+
+- a known puzzle with one solution,
+- early termination for a puzzle with multiple solutions,
+- invalid grids with zero solutions,
+- input immutability,
+- invalid solution limits,
+- exact requested removal counts,
+- uniqueness after clue removal,
+- zero and invalid removal rates,
+- reproducible puzzle and dataset generation,
+- source-grid immutability,
+- invalid source grids and sample counts,
+- valid complete ground-truth solutions.
+
+Result:
+
+`112 passed`
+
+### Current Scope
+
+The unique generator is available as an alternative dataset source. Existing baseline and removal-rate evaluation functions still use the original faster random-removal generator. Replacing their dataset source should be performed as a separate experiment because uniqueness checks add substantial generation cost and change the evaluated data distribution.
+
+### Conclusion
+
+The project can now distinguish unsolvable, uniquely solvable, and non-unique Sudoku puzzles. It can also generate reproducible datasets whose puzzles have exactly one solution, enabling stronger end-to-end evaluation in the next commit.

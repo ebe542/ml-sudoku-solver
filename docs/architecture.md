@@ -64,6 +64,32 @@ A value of `0` represents an empty Sudoku cell.
 
 The generated data is reproducible through configurable random seeds.
 
+### Unique-Solution Generation
+
+The original dataset generator removes cells without checking whether the resulting puzzle still has one solution. The optional unique-solution generator performs an additional bounded search after every tentative removal:
+
+```text
+Complete Sudoku solution
+          |
+          v
+Tentatively remove one clue
+          |
+          v
+Count solutions up to two
+          |
+     +----+----+
+     |         |
+     v         v
+One solution  Two solutions
+Keep removal  Restore clue
+```
+
+`count_solutions()` uses minimum-remaining-values cell selection and recursive backtracking. It stops when the configured solution limit is reached. `has_unique_solution()` requests at most two solutions and returns true only when exactly one is found.
+
+Starting from a complete valid grid, `create_unique_puzzle()` considers cells in a reproducibly shuffled order. A removal is permanent only if uniqueness remains. If the requested removal count cannot be reached, generation fails explicitly instead of returning a puzzle that violates the request.
+
+`create_unique_dataset()` repeats this process across independently generated complete Sudoku solutions and preserves each complete grid as ground truth.
+
 ## Feature Representation
 
 Each empty cell becomes an individual machine learning sample.

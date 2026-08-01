@@ -131,6 +131,20 @@ To load a model from a different location:
 python -m sudoku_ml.cli --model models/sudoku_random_forest.joblib "530070000600195000098000060800060003400803001700020006060000280000419005000080079"
 ```
 
+### Generate Puzzles with a Unique Solution
+
+```python
+from sudoku_ml.dataset.unique_generator import create_unique_dataset
+
+dataset = create_unique_dataset(
+    num_samples=10,
+    removal_rate=0.5,
+    random_seed=42,
+)
+```
+
+The uniqueness-preserving generator removes a clue only when the puzzle still has exactly one solution. Solution counting stops after a second solution is found because that is sufficient to classify a puzzle as non-unique.
+
 ## Hybrid Solver
 
 `HybridSudokuSolver` solves complete puzzles while preserving Sudoku validity. It selects constrained cells first, ranks ambiguous candidates with the trained Random Forest, and uses backtracking when a prediction leads to a dead end.
