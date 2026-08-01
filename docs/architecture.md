@@ -256,6 +256,30 @@ The hybrid solver combines three mechanisms:
 
 Machine-learning output affects search order only. Candidate filtering and the final solution remain governed by deterministic Sudoku constraints.
 
+### Greedy ML Solver
+
+`GreedyMLSudokuSolver` reuses the hybrid solver's input validation, minimum-remaining-values cell selection, candidate filtering, feature generation, and Random Forest ranking. It changes only the search strategy:
+
+```text
+Select most constrained cell
+          |
+          v
+Rank valid candidates with ML
+          |
+          v
+Permanently place top candidate
+          |
+     +----+----+
+     |         |
+     v         v
+Continue   Contradiction
+              |
+              v
+            Fail
+```
+
+The Greedy solver never tries a second candidate and never backtracks. It is therefore a constraint-aware measurement of whether the model can produce a complete correct decision sequence without algorithmic correction. It is not a completely unconstrained end-to-end neural solver because Sudoku rules still restrict the candidate set.
+
 ### Classical Solver
 
 `ClassicalSudokuSolver` reuses the same validation, minimum-remaining-values cell selection, and backtracking implementation as the hybrid solver. It replaces ML-based candidate ranking with ascending numerical order.
@@ -464,6 +488,24 @@ An analysis of ten unique puzzles per removal rate produced:
 
 The distribution demonstrates that removal rate and search difficulty are related but not equivalent. Puzzles with the same number of clues can fall into different heuristic levels.
 
+### Greedy ML Evaluation
+
+The Greedy comparison uses the same trained model, unique puzzles, expected solutions, cell-selection strategy, and candidate constraints for both Greedy and Hybrid ML. The only difference is whether a failed model choice can be reversed.
+
+| Removal rate | Greedy exact match | Hybrid exact match | Greedy failure | Recovered by Hybrid |
+|---:|---:|---:|---:|---:|
+| 50% | 100.00% | 100.00% | 0.00% | 0 / 20 |
+| 60% | 55.00% | 100.00% | 45.00% | 9 / 20 |
+| 65% | 25.00% | 100.00% | 75.00% | 15 / 20 |
+
+| Removal rate | Greedy runtime | Hybrid runtime | Greedy ML decisions | Hybrid ML decisions | Hybrid backtracks |
+|---:|---:|---:|---:|---:|---:|
+| 50% | 0.72 ms | 0.71 ms | 0.00 | 0.00 | 0.00 |
+| 60% | 14.39 ms | 17.56 ms | 0.90 | 1.10 | 11.80 |
+| 65% | 34.07 ms | 60.24 ms | 2.15 | 3.95 | 38.85 |
+
+The 50% result does not measure model ability because no ambiguous decisions were required. At higher removal rates, one unrecoverable model mistake can invalidate the entire Greedy solve. Hybrid backtracking converts those failed decision chains into a 100% exact match rate.
+
 ## Current Limitation
 
-The repeated unique-solution evaluation covers three seeds with 10 puzzles per rate. This is stronger than a single-run result but remains a small experiment. The reported standard deviation is descriptive population variability across these three selected runs, not a confidence interval. The new difficulty levels quantify classical search effort but remain project-specific heuristics rather than standardized human-solving ratings, and training-seed variability has not yet been measured.
+The current Random Forest cannot reliably solve ambiguous puzzles without correction: Greedy exact match falls to 55% at 60% removal and 25% at 65% removal. The evaluation covers 20 puzzles per rate and one pair of seeds, so repeated Greedy experiments are still needed. The model remains a cell-level classifier rather than an end-to-end grid model, and its probability ranking has not yet been analyzed with top-k or calibration metrics.

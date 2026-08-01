@@ -93,6 +93,31 @@ class HybridSudokuSolver:
         )
 
 
+class GreedyMLSudokuSolver(HybridSudokuSolver):
+    """Solve Sudoku grids with ML guidance and no backtracking."""
+
+    def _solve(self, grid: np.ndarray) -> bool:
+        while True:
+            choice = self._select_cell(grid)
+
+            if choice is None:
+                return True
+
+            row, column, candidates = choice
+
+            if not candidates:
+                return False
+
+            ranked_candidates = self._rank_candidates(
+                grid,
+                row,
+                column,
+                candidates,
+            )
+
+            grid[row, column] = ranked_candidates[0]
+
+
 class ClassicalSudokuSolver(HybridSudokuSolver):
     """Solve Sudoku grids using deterministic candidate ordering."""
 

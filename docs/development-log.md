@@ -1907,3 +1907,157 @@ Existing direct string input, `--model`, parser behavior, formatted output, and 
 ### Conclusion
 
 The project now behaves like an installable Python application rather than only a source-tree module. Users can solve puzzles through a stable `sudoku-ml` command, choose ML-guided or classical solving, read puzzles from files, and inspect package version information.
+
+---
+## Commit 26 - Greedy ML Solver Evaluation
+
+**Commit:** `feat: add greedy ML solver evaluation`
+
+### Objective
+
+Measure how often the current Random Forest can guide a complete Sudoku solve when incorrect model decisions cannot be repaired by backtracking.
+
+### Motivation
+
+The Hybrid solver reaches a 100% solution rate because it combines model ranking with deterministic constraints and recursive backtracking. This makes the complete system reliable but does not reveal whether the model can produce a fully correct sequence of decisions.
+
+Cell-level accuracy is also insufficient for answering that question. A single wrong decision can invalidate an otherwise correct sequence:
+
+```text
+Correct first decisions
+        |
+        v
+One wrong ML choice
+        |
+        v
+Later contradiction
+        |
+        v
+Entire Greedy solve fails
+```
+
+### Greedy Search Strategy
+
+`GreedyMLSudokuSolver` inherits the Hybrid solver's:
+
+- puzzle validation,
+- minimum-remaining-values cell selection,
+- valid-candidate filtering,
+- 118-feature representation,
+- Random Forest probability ranking,
+- solver statistics.
+
+It overrides the recursive search loop. When several candidates are possible, only the highest-ranked valid candidate is placed. The decision is permanent. A later cell with no valid candidate ends the solve and returns no solution.
+
+The Greedy solver is constraint-aware rather than fully model-only. Sudoku constraints still prevent immediately illegal digits, but no search mechanism corrects a locally plausible model mistake.
+
+### Comparison Design
+
+Greedy and Hybrid ML use the same:
+
+- trained Random Forest,
+- unique-solution evaluation puzzles,
+- expected ground-truth grids,
+- cell-selection rule,
+- candidate constraints,
+- feature calculation and probability ranking.
+
+The only experimental difference is backtracking.
+
+`recovered_puzzles` counts exact Hybrid matches minus exact Greedy matches. `greedy_failure_rate` is one minus the Greedy exact matching-solution rate.
+
+### Implemented
+
+- Added `GreedyMLSudokuSolver` without backtracking.
+- Preserved deterministic single-candidate solving.
+- Added reproducible tests for deterministic success and unrecoverable ML failure.
+- Added reusable Greedy-vs-Hybrid comparison results.
+- Added exact match and recovery metrics.
+- Added evaluation across multiple removal rates.
+- Added parameter and ground-truth validation tests.
+- Added a command-line experiment.
+
+### Usage
+
+Run the experiment from the project root:
+
+```bash
+python scripts/evaluate_greedy_solver.py
+```
+
+### Evaluation Configuration
+
+```text
+Removal rates: 0.50, 0.60, 0.65
+Training solutions per rate: 100
+Evaluation puzzles per rate: 20
+Random Forest estimators: 100
+Training random seed: 42
+Evaluation random seed: 123
+Evaluation data: unique-solution puzzles
+```
+
+### Exact Solution Performance
+
+| Removal rate | Greedy exact match | Hybrid exact match | Greedy failure | Recovered by Hybrid |
+|---:|---:|---:|---:|---:|
+| 50% | 100.00% | 100.00% | 0.00% | 0 |
+| 60% | 55.00% | 100.00% | 45.00% | 9 |
+| 65% | 25.00% | 100.00% | 75.00% | 15 |
+
+### Runtime and Search Effort
+
+Values are averages per puzzle.
+
+| Removal rate | Greedy runtime | Hybrid runtime | Greedy ML decisions | Hybrid ML decisions | Hybrid backtracks |
+|---:|---:|---:|---:|---:|---:|
+| 50% | 0.72 ms | 0.71 ms | 0.00 | 0.00 | 0.00 |
+| 60% | 14.39 ms | 17.56 ms | 0.90 | 1.10 | 11.80 |
+| 65% | 34.07 ms | 60.24 ms | 2.15 | 3.95 | 38.85 |
+
+### Interpretation
+
+At 50% removal, all puzzles were solved deterministically. Neither solver made an ML decision, so the 100% Greedy rate is not evidence of model capability.
+
+At 60%, Greedy ML solved 11 of 20 puzzles exactly. Hybrid backtracking recovered the remaining nine and reached 100%.
+
+At 65%, Greedy ML solved only five of 20 puzzles. Fifteen decision chains reached a contradiction and required Hybrid backtracking for recovery.
+
+Greedy runtime is lower because failed paths are abandoned rather than explored and corrected. The speed difference therefore represents less work, not superior solving quality.
+
+The results answer the model-focused research question:
+
+> The Random Forest provides useful local ranking information but cannot yet produce a reliable complete decision sequence for ambiguous Sudoku puzzles.
+
+### Testing
+
+The new tests cover:
+
+- deterministic Greedy success,
+- a reproducible wrong-choice failure,
+- zero Greedy backtracks,
+- successful Hybrid recovery,
+- exact match and failure-rate calculations,
+- multiple removal-rate evaluation,
+- invalid rates and puzzle counts,
+- mismatched ground-truth collections.
+
+Result:
+
+`159 passed`
+
+### Limitations
+
+- Only 20 puzzles are evaluated per removal rate.
+- One training seed and one evaluation seed are used.
+- Greedy remains constraint-aware and is not a pure end-to-end model.
+- Average ML-decision counts are lower for Greedy because failed solves stop early.
+- No top-k, ranking, or calibration metrics are reported yet.
+
+### Next Step
+
+Analyze the full probability ranking with top-k accuracy, mean reciprocal rank, confidence, and calibration metrics. This will show whether failed Greedy choices often contain the correct digit near the top even when top-1 is wrong.
+
+### Conclusion
+
+Backtracking is currently essential for reliable complete solving. The Greedy experiment isolates the limitation of the current Random Forest and establishes a stronger baseline for the next model-analysis phase.

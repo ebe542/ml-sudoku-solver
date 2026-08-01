@@ -7,6 +7,7 @@ from sudoku_ml.sudoku_generator import generate_solved_grid
 from sudoku_ml.model.random_forest import SudokuRandomForest
 from sudoku_ml.solver import (
     ClassicalSudokuSolver,
+    GreedyMLSudokuSolver,
     HybridSudokuSolver,
 )
 
@@ -16,6 +17,36 @@ def trained_solver() -> HybridSudokuSolver:
     model = SudokuRandomForest(n_estimators=20, random_seed=42)
     model.fit(data)
     return HybridSudokuSolver(model)
+
+@pytest.fixture(scope="module")
+def trained_solver() -> HybridSudokuSolver:
+    data = create_train_test_split(
+        num_solutions=20,
+        random_seed=42,
+    )
+    model = SudokuRandomForest(
+        n_estimators=20,
+        random_seed=42,
+    )
+    model.fit(data)
+    return HybridSudokuSolver(model)
+
+
+@pytest.fixture(scope="module")
+def ambiguous_model() -> SudokuRandomForest:
+    data = create_train_test_split(
+        num_solutions=50,
+        removal_rate=0.65,
+        random_seed=42,
+    )
+
+    model = SudokuRandomForest(
+        n_estimators=50,
+        random_seed=42,
+    )
+    model.fit(data)
+
+    return model
 
 
 def test_solver_completes_valid_puzzle(trained_solver: HybridSudokuSolver) -> None:
@@ -83,7 +114,6 @@ def test_solver_counts_deterministic_steps(trained_solver: HybridSudokuSolver) -
     assert trained_solver.stats.ml_decisions == 0
     assert trained_solver.stats.backtracks == 0
 
-
 def test_classical_solver_completes_puzzle_without_model() -> None:
     complete_grid = generate_solved_grid(random_seed=42)
 
@@ -101,3 +131,60 @@ def test_classical_solver_completes_puzzle_without_model() -> None:
     assert solver.stats.ml_decisions == 0
     assert solver.stats.backtracks == 0
 
+def test_greedy_solver_completes_deterministic_puzzle(ambiguous_model: SudokuRandomForest) -> None:
+    complete_grid = generate_solved_grid(random_seed=42)
+
+    puzzle_values = complete_grid.values.copy()
+    puzzle_values[0, 0] = 0
+
+    solver = GreedyMLSudokuSolver(ambiguous_model)
+    solution = solver.solve(SudokuGrid(puzzle_values))
+
+    assert solution is not None
+    assert solution.is_complete()
+    assert solution.is_valid()
+    assert solver.stats.deterministic_steps == 1
+    assert solver.stats.ml_decisions == 0
+    assert solver.stats.branching_decisions == 0
+    assert solver.stats.backtracks == 0
+
+
+def test_greedy_solver_cannot_recover_from_wrong_ml_choice(ambiguous_model: SudokuRandomForest) -> None:
+    puzzle_text = (
+        "650200040"
+        "000603000"
+        "100040200"
+        "305000000"
+        "068509003"
+        "000301650"
+        "006004000"
+        "080090570"
+        "500000068"
+    )
+
+    puzzle_values = np.array(
+        [int(value) for value in puzzle_text],
+        dtype=int,
+    ).reshape(9, 9)
+
+    puzzle = SudokuGrid(puzzle_values)
+
+    greedy_solver = GreedyMLSudokuSolver(
+        ambiguous_model
+    )
+    hybrid_solver = HybridSudokuSolver(
+        ambiguous_model
+    )
+
+    greedy_solution = greedy_solver.solve(puzzle)
+    hybrid_solution = hybrid_solver.solve(puzzle)
+
+    assert greedy_solution is None
+    assert greedy_solver.stats.ml_decisions > 0
+    assert greedy_solver.stats.branching_decisions > 0
+    assert greedy_solver.stats.backtracks == 0
+
+    assert hybrid_solution is not None
+    assert hybrid_solution.is_complete()
+    assert hybrid_solution.is_valid()
+    assert hybrid_solver.stats.backtracks > 0

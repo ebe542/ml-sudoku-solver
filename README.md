@@ -200,6 +200,14 @@ python scripts/analyze_puzzle_difficulty.py
 
 Analyzes uniquely solvable puzzles using clue count, initial candidate structure, deterministic steps, branching decisions, and classical backtracking effort. The resulting easy, medium, hard, and expert levels are project-specific heuristics and are not official Sudoku difficulty ratings.
 
+### Evaluate Greedy ML Without Backtracking
+
+```bash
+python scripts/evaluate_greedy_solver.py
+```
+
+Compares a constraint-aware Greedy ML solver with the Hybrid ML solver on identical unique-solution puzzles. Greedy ML permanently accepts the model's highest-ranked valid candidate and cannot recover from a wrong decision. At removal rates of 0.60 and 0.65, its exact solution rates were 55% and 25%, compared with 100% for the backtracking-enabled hybrid solver.
+
 ## Hybrid Solver
 
 `HybridSudokuSolver` solves complete puzzles while preserving Sudoku validity. It selects constrained cells first, ranks ambiguous candidates with the trained Random Forest, and uses backtracking when a prediction leads to a dead end.
