@@ -178,7 +178,13 @@ The model supports:
 
 ### Evaluation
 
-Contains reusable evaluation logic, including grouped cross-validation.
+Contains reusable evaluation logic, including:
+
+- grouped cross-validation for cell-level prediction,
+- end-to-end hybrid solver evaluation,
+- solution and validity rates,
+- runtime measurement,
+- deterministic-step, ML-decision, and backtracking statistics.
 
 ### Analysis
 
@@ -193,14 +199,11 @@ Contains tools for understanding model behavior, including:
 
 The hybrid solver combines three mechanisms:
 
-1. Minimum-remaining-values cell selection prioritizes the most constrained
-   empty cell.
-2. Random Forest probabilities rank valid candidates when multiple choices
-   remain.
+1. Minimum-remaining-values cell selection prioritizes the most constrained empty cell.
+2. Random Forest probabilities rank valid candidates when multiple choices remain.
 3. Recursive backtracking reverses choices that lead to contradictions.
 
-Machine-learning output affects search order only. Candidate filtering and the
-final solution remain governed by deterministic Sudoku constraints.
+Machine-learning output affects search order only. Candidate filtering and the final solution remain governed by deterministic Sudoku constraints.
 
 ## Current Results
 
@@ -219,8 +222,21 @@ Five-fold grouped cross-validation produced:
 | Minimum | 63.38% |
 | Maximum | 67.37% |
 
+The first end-to-end evaluation used 20 independently generated puzzles with a removal rate of 0.5:
+
+| Metric | Result |
+|---|---:|
+| Puzzles solved | 20 / 20 |
+| Valid solution rate | 100.00% |
+| Average runtime | 20.64 ms |
+| Deterministic steps | 774 |
+| ML decisions | 26 |
+| Backtracks | 0 |
+
+The 800 placements consisted of 96.75% deterministic steps and 3.25 % ML-ranked decisions. At this removal rate, constraint propagation therefore
+performs most of the solving work.
+
 ## Current Limitation
 
-The hybrid solver can complete an entire Sudoku, but its current evaluation is
-still focused on cell-level prediction accuracy. End-to-end benchmarks for
-solution rate, runtime, and backtracking effort have not yet been added.
+The current end-to-end benchmark covers only 20 puzzles at one removal rate.
+It does not yet compare ML-guided candidate ordering with a non-ML baseline or measure behavior across multiple puzzle difficulty levels.

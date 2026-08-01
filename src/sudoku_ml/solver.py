@@ -4,6 +4,16 @@ from sudoku_ml.grid import SudokuGrid
 from sudoku_ml.model.random_forest import SudokuRandomForest
 from sudoku_ml.preprocessing.constraints import get_candidates
 from sudoku_ml.preprocessing.features import create_feature_vector
+from dataclasses import dataclass
+
+
+@dataclass
+class SolverStats:
+    """Store statistics collected during one solving attempt."""
+
+    deterministic_steps: int = 0
+    ml_decisions: int = 0
+    backtracks: int = 0
 
 
 class HybridSudokuSolver:
@@ -11,13 +21,17 @@ class HybridSudokuSolver:
 
     def __init__(self, model: SudokuRandomForest) -> None:
         self.model = model
+        self.stats = SolverStats()
 
     def solve(self, puzzle: SudokuGrid) -> SudokuGrid | None:
         """Return a valid completed grid, or None if no solution exists."""
+        self.stats = SolverStats()
+
         if not puzzle.is_valid():
             raise ValueError("The puzzle must be a valid Sudoku grid.")
 
         values = puzzle.values.copy()
+
         if not self._solve(values):
             return None
 
@@ -36,6 +50,8 @@ class HybridSudokuSolver:
             grid[row, column] = digit
             if self._solve(grid):
                 return True
+
+            self.stats.backtracks += 1
             grid[row, column] = 0
 
         return False
@@ -56,16 +72,13 @@ class HybridSudokuSolver:
 
         return best
 
-    def _rank_candidates(
-        self,
-        grid: np.ndarray,
-        row: int,
-        column: int,
-        candidates: set[int],
-    ) -> list[int]:
+    def _rank_candidates(self, grid: np.ndarray, row: int, column: int, candidates: set[int]) -> list[int]:
         """Rank valid candidates using model probabilities."""
         if len(candidates) == 1:
+            self.stats.deterministic_steps += 1
             return list(candidates)
+
+        self.stats.ml_decisions += 1
 
         features = create_feature_vector(grid, row, column)[np.newaxis, :]
         probabilities = self.model.predict_probabilities(features)[0]

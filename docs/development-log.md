@@ -256,8 +256,7 @@ Each feature vector contains:
 
 The split is performed before converting the puzzles into cell-level machine learning samples.
 
-This is important because one Sudoku solution can produce multiple incomplete puzzles. Splitting individual cell samples could allow
-related puzzles to appear in both the training and test sets. 
+This is important because one Sudoku solution can produce multiple incomplete puzzles. Splitting individual cell samples could allow related puzzles to appear in both the training and test sets. 
 
 By splitting complete solutions first, the test set contains Sudoku structures that were not used to create the training data.
 
@@ -282,8 +281,7 @@ All tests passed.
 
 Introduce the first machine learning model for the Sudoku prediction pipeline.
 
-The goal is to establish a baseline that can predict the correct digit for a selected empty Sudoku cell based on the current puzzle
-state.
+The goal is to establish a baseline that can predict the correct digit for a selected empty Sudoku cell based on the current puzzle state.
 
 ### Model
 
@@ -357,11 +355,9 @@ The baseline therefore performs only slightly better than random prediction.
 
 ### Interpretation
 
-The result shows that the current feature representation does not provide enough information for the Random Forest to reliably infer the
-correct Sudoku digit.
+The result shows that the current feature representation does not provide enough information for the Random Forest to reliably infer the correct Sudoku digit.
 
-The model currently receives the Sudoku grid and the target cell position, but the Sudoku constraints are not explicitly represented
-as features.
+The model currently receives the Sudoku grid and the target cell position, but the Sudoku constraints are not explicitly represented as features.
 
 This provides a useful baseline for future feature engineering and model improvements.
 
@@ -380,8 +376,7 @@ It does not represent the accuracy of a complete Sudoku solver.
 
 Improve the feature representation by explicitly providing Sudoku-specific constraint information to the machine learning model.
 
-The baseline model only received the Sudoku grid and the target cell position. The new features additionally describe which digits are
-valid candidates for the target cell.
+The baseline model only received the Sudoku grid and the target cell position. The new features additionally describe which digits are valid candidates for the target cell.
 
 ### Implemented
 
@@ -434,8 +429,7 @@ This is a substantial improvement without changing the model, training data size
 
 The result demonstrates the importance of domain-specific feature engineering.
 
-The baseline model had to learn Sudoku constraints implicitly from the grid representation. By explicitly representing possible candidate
-digits, important Sudoku structure becomes directly available to the model.
+The baseline model had to learn Sudoku constraints implicitly from the grid representation. By explicitly representing possible candidate digits, important Sudoku structure becomes directly available to the model.
 
 The experiment therefore provides evidence that the feature representation has a major impact on model performance.
 
@@ -462,14 +456,11 @@ The prediction accuracy strongly depends on the number of valid candidate digits
 | 5 | 13.3% | 15 |
 | 6 | 0.0% | 2 |
 
-The model performs perfectly when only one candidate is possible. However, performance decreases significantly as the number of
-possible candidates increases.
+The model performs perfectly when only one candidate is possible. However, performance decreases significantly as the number of possible candidates increases.
 
-This indicates that the current model can exploit local Sudoku constraints but has difficulty resolving situations where multiple
-candidate digits remain possible.
+This indicates that the current model can exploit local Sudoku constraints but has difficulty resolving situations where multiple candidate digits remain possible.
 
-This is an important limitation of the current cell-level prediction approach because Sudoku decisions can depend on relationships between
-multiple cells.
+This is an important limitation of the current cell-level prediction approach because Sudoku decisions can depend on relationships between multiple cells.
 
 ---
 ## Commit 12 — Candidate Interaction Features
@@ -511,13 +502,11 @@ The Random Forest configuration remained unchanged.
 
 The interaction features improved the prediction accuracy from 50.25 % to 66.50 %.
 
-This demonstrates that relationships between neighbouring candidate sets provide valuable information for distinguishing between multiple
-valid Sudoku candidates.
+This demonstrates that relationships between neighbouring candidate sets provide valuable information for distinguishing between multiple valid Sudoku candidates.
 
 ### Conclusion
 
-The experiment confirms that representing local interactions between candidate sets significantly improves model performance without
-changing the underlying learning algorithm.
+The experiment confirms that representing local interactions between candidate sets significantly improves model performance without changing the underlying learning algorithm.
 
 ---
 ## Commit 13 — Feature Importance Analysis
@@ -705,13 +694,11 @@ The mean grouped cross-validation accuracy of **65.83%** is close to the previou
 
 This indicates that the previous result was representative rather than the consequence of an unusually favorable train/test split.
 
-The relatively small standard deviation shows that the model performs consistently across different groups of previously unseen Sudoku
-solutions.
+The relatively small standard deviation shows that the model performs consistently across different groups of previously unseen Sudoku solutions.
 
 ### Conclusion
 
-Grouped cross-validation confirms that the current Random Forest and feature representation provide stable cell-level prediction performance
-while avoiding leakage between samples derived from the same Sudoku.
+Grouped cross-validation confirms that the current Random Forest and feature representation provide stable cell-level prediction performance while avoiding leakage between samples derived from the same Sudoku.
 
 ---
 ## Commit 15 — Hybrid ML Sudoku Solver
@@ -720,8 +707,7 @@ while avoiding leakage between samples derived from the same Sudoku.
 
 ### Objective
 
-Extend the cell-level classifier into a system capable of solving complete
-Sudoku puzzles without allowing invalid model predictions.
+Extend the cell-level classifier into a system capable of solving complete Sudoku puzzles without allowing invalid model predictions.
 
 ### Approach
 
@@ -758,14 +744,86 @@ Select cell with fewest candidates
 ### Design Decision
 
 The model only determines the order in which valid candidates are attempted.
-Sudoku constraints filter all candidates, while backtracking ensures that a
-locally plausible prediction cannot make the final solution invalid.
+Sudoku constraints filter all candidates, while backtracking ensures that a locally plausible prediction cannot make the final solution invalid.
 
 ### Testing
 
-The test suite verifies complete and valid solutions, preservation of given
-digits, input immutability, and rejection of conflicting puzzles.
+The test suite verifies complete and valid solutions, preservation of given digits, input immutability, and rejection of conflicting puzzles.
 
 Result:
 
 `71 passed`
+
+---
+## Commit 16 - End-to-End Solver Evaluation
+
+**Commit:** `feat: add end-to-end solver evaluation`
+
+### Objective
+
+Evaluate the complete hybrid system rather than measuring only cell-level digit prediction accuracy.
+
+### Implemented
+
+- Added `SolverStats` for deterministic steps, ML decisions, and backtracks.
+- Reset solver statistics for every solving attempt.
+- Added `SolverEvaluationResult` with aggregated metrics.
+- Added solution-rate, validity-rate, runtime, and backtracking summaries.
+- Verified that completed solutions preserve all original clues.
+- Added an executable end-to-end evaluation script.
+- Added unit and integration tests for statistics and evaluation metrics.
+
+### Usage
+
+Run the evaluation from the project root:
+
+```bash
+python scripts/evaluate_solver.py
+```
+
+### Evaluation Configuration
+
+```text
+Training solutions: 100
+Training/test split: 80% / 20%
+Evaluation puzzles: 20
+Removal rate: 0.5
+Random Forest estimators: 100
+Training random seed: 42
+Evaluation random seed: 123
+```
+
+The separate evaluation seed produces an independently generated collection of puzzles that is not reused for model training.
+
+### Results
+
+| Metric | Result |
+|---|---:|
+| Puzzles evaluated | 20 |
+| Puzzles solved | 20 |
+| Valid solutions | 20 |
+| Solution rate | 100.00% |
+| Valid solution rate | 100.00% |
+| Average runtime | 20.64 ms |
+| Deterministic steps | 774 |
+| ML decisions | 26 |
+| Backtracks | 0 |
+| Average backtracks | 0.00 |
+
+### Interpretation
+
+The solver placed 800 digits across the 20 evaluation puzzles. Of these, **96.75%** were deterministic single-candidate steps and **3.25%** required ML-based candidate ranking.
+
+No candidate choice led to a dead end, so backtracking was not required in this experiment. This shows that puzzles generated with a removal rate of 0.5 are largely solved through deterministic constraint propagation.
+
+The 100% solution rate demonstrates that the integrated solver produces valid complete grids for this evaluation set. It does not mean that the underlying cell classifier has 100% prediction accuracy, because Sudoku constraints and backtracking protect the final solving process from invalid choices.
+
+### Testing
+
+Result:
+
+`75 passed`
+
+### Next Step
+
+Evaluate multiple removal rates and compare the ML-guided solver with a classical non-ML candidate-ordering baseline.

@@ -55,3 +55,27 @@ def test_solver_rejects_conflicting_puzzle(trained_solver: HybridSudokuSolver) -
 
     with pytest.raises(ValueError, match="valid Sudoku"):
         trained_solver.solve(SudokuGrid(values))
+
+def test_solver_counts_deterministic_steps(trained_solver: HybridSudokuSolver) -> None:
+    puzzle = SudokuGrid(
+        np.array(
+            [
+                [0, 3, 4, 6, 7, 8, 9, 1, 2],
+                [6, 7, 2, 1, 9, 5, 3, 4, 8],
+                [1, 9, 8, 3, 4, 2, 5, 6, 7],
+                [8, 5, 9, 7, 6, 1, 4, 2, 3],
+                [4, 2, 6, 8, 5, 3, 7, 9, 1],
+                [7, 1, 3, 9, 2, 4, 8, 5, 6],
+                [9, 6, 1, 5, 3, 7, 2, 8, 4],
+                [2, 8, 7, 4, 1, 9, 6, 3, 5],
+                [3, 4, 5, 2, 8, 6, 1, 7, 9],
+            ]
+        )
+    )
+
+    solution = trained_solver.solve(puzzle)
+
+    assert solution is not None
+    assert trained_solver.stats.deterministic_steps == 1
+    assert trained_solver.stats.ml_decisions == 0
+    assert trained_solver.stats.backtracks == 0
