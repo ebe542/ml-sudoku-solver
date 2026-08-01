@@ -35,8 +35,8 @@ def test_feature_shape_is_correct() -> None:
         random_seed=42,
     )
 
-    assert data.X_train.shape[1] == 91
-    assert data.X_test.shape[1] == 91
+    assert data.X_train.shape[1] == 118
+    assert data.X_test.shape[1] == 118
 
 
 def test_split_is_reproducible() -> None:

@@ -472,3 +472,51 @@ candidate digits remain possible.
 
 This is an important limitation of the current cell-level prediction approach because Sudoku decisions can depend on relationships between
 multiple cells.
+
+---
+## Commit 12 — Candidate Interaction Features
+
+**Commit:** `feat: add candidate interaction features`
+
+### Objective
+
+Improve the feature representation by incorporating information about the candidate distributions in neighbouring cells.
+
+### Motivation
+
+The previous error analysis showed that prediction accuracy decreases rapidly as the number of valid candidate digits increases.
+
+This indicates that local candidate information alone is insufficient for distinguishing between multiple valid candidates.
+
+### Implemented
+
+- Added candidate interaction features.
+- Counted candidate occurrences in
+  - the same row,
+  - the same column,
+  - the same 3×3 block.
+- Added 27 interaction features.
+- Increased the feature vector size from 91 to 118 features.
+- Added unit tests for candidate interaction calculation.
+
+### Evaluation
+
+The Random Forest configuration remained unchanged.
+
+| Feature representation | Accuracy |
+|------------------------|---------:|
+| Baseline (82 features) | 11.75 % |
+| Constraint features (91 features) | 50.25 % |
+| Interaction features (118 features) | 66.50 % |
+
+### Result
+
+The interaction features improved the prediction accuracy from 50.25 % to 66.50 %.
+
+This demonstrates that relationships between neighbouring candidate sets provide valuable information for distinguishing between multiple
+valid Sudoku candidates.
+
+### Conclusion
+
+The experiment confirms that representing local interactions between candidate sets significantly improves model performance without
+changing the underlying learning algorithm.

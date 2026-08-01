@@ -1,7 +1,10 @@
 import numpy as np
 import pytest
 
-from sudoku_ml.preprocessing.constraints import get_candidates
+from sudoku_ml.preprocessing.constraints import (
+    get_candidate_interactions,
+    get_candidates
+)
 
 
 def test_candidates_respect_row_constraints() -> None:
@@ -82,3 +85,68 @@ def test_candidates_require_empty_cell() -> None:
 
     with pytest.raises(ValueError):
         get_candidates(grid, 0, 0)
+
+def test_candidate_interactions_have_expected_shape() -> None:
+    grid = np.zeros((9, 9), dtype=int)
+
+    interactions = get_candidate_interactions(grid, 0, 0)
+
+    assert interactions.shape == (27,)
+
+
+def test_candidate_interactions_are_non_negative() -> None:
+    grid = np.zeros((9, 9), dtype=int)
+
+    interactions = get_candidate_interactions(grid, 0, 0)
+
+    assert np.all(interactions >= 0)
+
+
+def test_candidate_interactions_require_empty_cell() -> None:
+    grid = np.zeros((9, 9), dtype=int)
+    grid[0, 0] = 5
+
+    with pytest.raises(ValueError):
+        get_candidate_interactions(grid, 0, 0)
+
+
+def test_candidate_interactions_count_row_candidates() -> None:
+    grid = np.zeros((9, 9), dtype=int)
+
+    interactions = get_candidate_interactions(grid, 0, 0)
+
+    row_counts = interactions[:9]
+
+    # Eight other empty cells exist in the row, and every digit is
+    # initially a valid candidate for each of them.
+    np.testing.assert_array_equal(
+        row_counts,
+        np.full(9, 8.0, dtype=np.float32),
+    )
+
+
+def test_candidate_interactions_count_column_candidates() -> None:
+    grid = np.zeros((9, 9), dtype=int)
+
+    interactions = get_candidate_interactions(grid, 0, 0)
+
+    column_counts = interactions[9:18]
+
+    np.testing.assert_array_equal(
+        column_counts,
+        np.full(9, 8.0, dtype=np.float32),
+    )
+
+
+def test_candidate_interactions_count_block_candidates() -> None:
+    grid = np.zeros((9, 9), dtype=int)
+
+    interactions = get_candidate_interactions(grid, 0, 0)
+
+    block_counts = interactions[18:]
+
+    # A 3x3 block contains eight peer cells besides the target cell.
+    np.testing.assert_array_equal(
+        block_counts,
+        np.full(9, 8.0, dtype=np.float32),
+    )

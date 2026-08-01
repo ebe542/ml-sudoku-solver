@@ -1,7 +1,10 @@
 import numpy as np
 
 from sudoku_ml.dataset.generator import SudokuDataset
-from sudoku_ml.preprocessing.constraints import get_candidates
+from sudoku_ml.preprocessing.constraints import (
+    get_candidates,
+    get_candidate_interactions
+)
 
 
 def create_features_and_targets(dataset: SudokuDataset) -> tuple[np.ndarray, np.ndarray]:
@@ -26,12 +29,18 @@ def create_features_and_targets(dataset: SudokuDataset) -> tuple[np.ndarray, np.
                 ],
                 dtype=np.float32,
             )
+            interaction_features = get_candidate_interactions(
+                puzzle,
+                row,
+                column,
+            )
 
             feature_vector = np.concatenate(
                 [
                     grid_features,
                     np.array([cell_index], dtype=np.float32),
                     candidate_features,
+                    interaction_features
                 ]
             )
 
