@@ -117,10 +117,16 @@ Only load joblib files from trusted sources. Deserializing an untrusted file can
 
 ### Solve a Sudoku from the Command Line
 
-Train the default model first, then pass an 81-cell Sudoku string to the CLI:
+Install the project in editable mode to register the `sudoku-ml` command:
 
 ```bash
-python -m sudoku_ml.cli "530070000600195000098000060800060003400803001700020006060000280000419005000080079"
+python -m pip install -e ".[dev]"
+```
+
+Train the default model, then pass an 81-cell Sudoku string to the ML-guided solver:
+
+```bash
+sudoku-ml "530070000600195000098000060800060003400803001700020006060000280000419005000080079"
 ```
 
 Use `0` or `.` for empty cells. Whitespace and line breaks in the input are ignored. The CLI prints the original puzzle, the completed solution, and solver statistics.
@@ -128,7 +134,32 @@ Use `0` or `.` for empty cells. Whitespace and line breaks in the input are igno
 To load a model from a different location:
 
 ```bash
-python -m sudoku_ml.cli --model models/sudoku_random_forest.joblib "530070000600195000098000060800060003400803001700020006060000280000419005000080079"
+sudoku-ml --model models/sudoku_random_forest.joblib "530070000600195000098000060800060003400803001700020006060000280000419005000080079"
+```
+
+Use the classical solver without a model:
+
+```bash
+sudoku-ml --classical "530070000600195000098000060800060003400803001700020006060000280000419005000080079"
+```
+
+Read a formatted puzzle from a UTF-8 text file:
+
+```bash
+sudoku-ml --classical --input-file puzzle.txt
+```
+
+Show help or the installed version:
+
+```bash
+sudoku-ml --help
+sudoku-ml --version
+```
+
+The original module invocation remains available:
+
+```bash
+python -m sudoku_ml.cli --classical "530070000600195000098000060800060003400803001700020006060000280000419005000080079"
 ```
 
 ### Generate Puzzles with a Unique Solution

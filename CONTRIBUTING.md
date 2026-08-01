@@ -12,8 +12,19 @@ The project is developed for self-study and educational purposes.
 
 1. Clone the repository.
 2. Create and activate a Python virtual environment.
-3. Install the project dependencies.
+3. Install the project and development dependencies in editable mode.
 4. Run the test suite before making changes.
+
+Using Git Bash on Windows:
+
+```bash
+python -m venv .venv
+source .venv/Scripts/activate
+python -m pip install -e ".[dev]"
+pytest -q
+```
+
+The editable install registers the `sudoku-ml` console command and keeps imports connected to the local `src/` directory.
 
 ## Code Contributions
 

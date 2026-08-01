@@ -18,6 +18,9 @@ dependencies = [
     "joblib",
 ]
 
+[project.scripts]
+sudoku-ml = "sudoku_ml.cli:main"
+
 [project.optional-dependencies]
 dev = [
     "pytest",

@@ -1767,3 +1767,143 @@ Result:
 ### Conclusion
 
 The project now separates clue removal from measured search difficulty. Structural candidate metrics and classical solver effort provide a more informative, reproducible profile while remaining explicit about the limits of the heuristic rating.
+
+---
+## Commit 25 - Installable Command-Line Interface
+
+**Commit:** `feat: add installable command-line interface`
+
+### Objective
+
+Turn the existing module-based CLI into a convenient installed command and improve input, solver-selection, version, and error-handling behavior while preserving backward compatibility.
+
+### Package Entry Point
+
+The project metadata now registers:
+
+```toml
+[project.scripts]
+sudoku-ml = "sudoku_ml.cli:main"
+```
+
+After an editable install, the command is available inside the active virtual environment:
+
+```bash
+python -m pip install -e ".[dev]"
+sudoku-ml --version
+```
+
+Verified version output:
+
+```text
+ml-sudoku-solver 0.1.0
+```
+
+### Input Sources
+
+The CLI supports two mutually exclusive input methods:
+
+```text
+Direct argument -> sudoku-ml "81-cell puzzle"
+Text file       -> sudoku-ml --input-file puzzle.txt
+```
+
+Text files are read as UTF-8. Existing normalization continues to ignore whitespace and accepts both `0` and `.` for empty cells.
+
+Argparse requires exactly one input source. Missing input and conflicting direct/file input produce exit code 2 with usage information.
+
+### Solver Modes
+
+The default mode loads the saved Random Forest and creates `HybridSudokuSolver`:
+
+```bash
+sudoku-ml "81-cell puzzle"
+```
+
+The classical mode does not require a model file:
+
+```bash
+sudoku-ml --classical "81-cell puzzle"
+```
+
+The selected solver name is included in terminal statistics so that output remains self-describing.
+
+### Version Handling
+
+`--version` reads the installed distribution version through `importlib.metadata`. If package metadata is unavailable, the CLI reports `development` instead of failing.
+
+The printed name is fixed to `ml-sudoku-solver`, making version output consistent across the console command, module execution, and direct function tests.
+
+### Implemented
+
+- Added the `sudoku-ml` project entry point.
+- Preserved `python -m sudoku_ml.cli` compatibility.
+- Added UTF-8 puzzle-file input.
+- Made direct and file input mutually exclusive and required.
+- Added classical solving without a model dependency.
+- Added solver-mode output.
+- Added installed-package version reporting.
+- Expanded file and argument error handling.
+- Removed duplicate CLI test imports.
+- Documented editable installation for Git Bash on Windows.
+
+### Usage
+
+Hybrid solver with the default model:
+
+```bash
+sudoku-ml "530070000600195000098000060800060003400803001700020006060000280000419005000080079"
+```
+
+Classical solver:
+
+```bash
+sudoku-ml --classical "530070000600195000098000060800060003400803001700020006060000280000419005000080079"
+```
+
+File input:
+
+```bash
+sudoku-ml --classical --input-file puzzle.txt
+```
+
+Help and version:
+
+```bash
+sudoku-ml --help
+sudoku-ml --version
+```
+
+### Verification
+
+The installed entry point was verified for:
+
+- version output,
+- generated help text,
+- a complete classical solve invocation,
+- formatted solution output,
+- solver statistics.
+
+### Testing
+
+The new tests cover:
+
+- classical mode without a model file,
+- successful UTF-8 file input,
+- missing input files,
+- required input selection,
+- conflicting direct and file inputs,
+- stable version output,
+- selected solver output.
+
+Result:
+
+`148 passed`
+
+### Compatibility
+
+Existing direct string input, `--model`, parser behavior, formatted output, and `python -m sudoku_ml.cli` remain supported.
+
+### Conclusion
+
+The project now behaves like an installable Python application rather than only a source-tree module. Users can solve puzzles through a stable `sudoku-ml` command, choose ML-guided or classical solving, read puzzles from files, and inspect package version information.

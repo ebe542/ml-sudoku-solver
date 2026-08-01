@@ -282,9 +282,27 @@ HybridSudokuSolver
 Formatted solution and statistics
 ```
 
-The parser accepts digits, dots, and whitespace. Both `0` and `.` represent empty cells. The normalized input must contain exactly 81 cells before it is reshaped into a `SudokuGrid`.
+The parser accepts digits, dots, and whitespace. Both `0` and `.` represent empty cells. The normalized input must contain exactly 81 cells before it is reshaped into a `SudokuGrid`. Input can be supplied directly as a positional argument or read from a UTF-8 text file with `--input-file`; these sources are mutually exclusive.
 
-The default model path is `models/sudoku_random_forest.joblib`. A different trusted model file can be selected with `--model`. Invalid input, missing model files, and unexpected serialized object types are reported as command-line usage errors.
+The default hybrid mode loads `models/sudoku_random_forest.joblib`. A different trusted model file can be selected with `--model`. The `--classical` option uses deterministic numerical candidate ordering and does not load a model. Invalid input, missing files, conflicting input sources, and unexpected serialized object types are reported as command-line usage errors.
+
+### Package Entry Point
+
+The project metadata registers an installable console script:
+
+```toml
+[project.scripts]
+sudoku-ml = "sudoku_ml.cli:main"
+```
+
+An editable development install creates the platform-specific executable while continuing to import code from the local `src/` directory:
+
+```bash
+python -m pip install -e ".[dev]"
+sudoku-ml --version
+```
+
+The CLI reads package version metadata through `importlib.metadata` and falls back to `development` when distribution metadata is unavailable. Both `sudoku-ml` and `python -m sudoku_ml.cli` call the same tested `main()` function.
 
 ## Current Results
 

@@ -1,11 +1,15 @@
 import argparse
+from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 
 import numpy as np
 
 from sudoku_ml.grid import SudokuGrid
 from sudoku_ml.model.random_forest import SudokuRandomForest
-from sudoku_ml.solver import HybridSudokuSolver
+from sudoku_ml.solver import ClassicalSudokuSolver, HybridSudokuSolver
+
+
+PACKAGE_NAME = "ml-sudoku-solver"
 
 
 def parse_grid(text: str) -> SudokuGrid:
@@ -31,6 +35,7 @@ def parse_grid(text: str) -> SudokuGrid:
     ).reshape(9, 9)
 
     return SudokuGrid(values)
+
 
 def format_grid(grid: SudokuGrid) -> str:
     """Format a Sudoku grid for terminal output."""
@@ -59,6 +64,14 @@ DEFAULT_MODEL_PATH = Path(
     "models/sudoku_random_forest.joblib"
 )
 
+
+def get_version() -> str:
+    """Return the installed package version or a development fallback."""
+    try:
+        return version(PACKAGE_NAME)
+    except PackageNotFoundError:
+        return "development"
+
 def create_argument_parser() -> argparse.ArgumentParser:
     """Create the command-line argument parser."""
     parser = argparse.ArgumentParser(
@@ -68,10 +81,32 @@ def create_argument_parser() -> argparse.ArgumentParser:
     )
 
     parser.add_argument(
+        "--version",
+        action="version",
+        version=f"{PACKAGE_NAME} {get_version()}",
+    )
+
+    input_group = parser.add_mutually_exclusive_group(required=True)
+
+    input_group.add_argument(
         "puzzle",
+        nargs="?",
         help=(
             "Sudoku as 81 cells. Use 0 or . for empty cells."
         ),
+    )
+
+    input_group.add_argument(
+        "-f",
+        "--input-file",
+        type=Path,
+        help="Read the Sudoku from a text file.",
+    )
+
+    parser.add_argument(
+        "--classical",
+        action="store_true",
+        help="Use classical candidate ordering without a saved model.",
     )
 
     parser.add_argument(
@@ -87,19 +122,44 @@ def create_argument_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def read_puzzle_text(
+    puzzle: str | None,
+    input_file: Path | None,
+) -> str:
+    """Return puzzle text from a direct argument or input file."""
+    if input_file is not None:
+        return input_file.read_text(encoding="utf-8")
+
+    if puzzle is None:
+        raise ValueError("A Sudoku puzzle is required.")
+
+    return puzzle
+
+
 def main(arguments: list[str] | None = None) -> int:
     """Run the Sudoku solver command-line interface."""
     parser = create_argument_parser()
     parsed_arguments = parser.parse_args(arguments)
 
     try:
-        puzzle = parse_grid(parsed_arguments.puzzle)
-        model = SudokuRandomForest.load(
-            parsed_arguments.model
+        puzzle_text = read_puzzle_text(
+            parsed_arguments.puzzle,
+            parsed_arguments.input_file,
         )
-        solver = HybridSudokuSolver(model)
+        puzzle = parse_grid(puzzle_text)
+
+        if parsed_arguments.classical:
+            solver = ClassicalSudokuSolver()
+            solver_name = "classical"
+        else:
+            model = SudokuRandomForest.load(
+                parsed_arguments.model
+            )
+            solver = HybridSudokuSolver(model)
+            solver_name = "hybrid ML-guided"
+
         solution = solver.solve(puzzle)
-    except (ValueError, TypeError, FileNotFoundError) as error:
+    except (ValueError, TypeError, OSError) as error:
         parser.error(str(error))
 
     if solution is None:
@@ -118,6 +178,7 @@ def main(arguments: list[str] | None = None) -> int:
 
     print("Solver Statistics")
     print("-----------------")
+    print(f"Solver:              {solver_name}")
     print(
         "Deterministic steps: "
         f"{solver.stats.deterministic_steps}"

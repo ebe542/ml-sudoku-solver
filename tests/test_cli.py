@@ -7,11 +7,6 @@ from sudoku_ml.cli import format_grid, main, parse_grid
 from sudoku_ml.data.split import create_train_test_split
 from sudoku_ml.model.random_forest import SudokuRandomForest
 
-from sudoku_ml.cli import (
-    format_grid,
-    parse_grid
-)
-
 PUZZLE_TEXT = (
     "530070000"
     "600195000"
@@ -112,6 +107,7 @@ def test_main_solves_puzzle_with_saved_model(
     assert exit_code == 0
     assert "Input" in output
     assert "Solution" in output
+    assert "Solver:              hybrid ML-guided" in output
     assert "5 3 4 | 6 7 8 | 9 1 2" in output
     assert "Deterministic steps: 51" in output
     assert "ML decisions:        0" in output
@@ -144,3 +140,97 @@ def test_main_reports_missing_model(tmp_path: Path, capsys: pytest.CaptureFixtur
 
     assert error.value.code == 2
     assert "missing.joblib" in captured.err
+
+
+def test_main_uses_classical_solver_without_model(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    exit_code = main([PUZZLE_TEXT, "--classical"])
+    output = capsys.readouterr().out
+
+    assert exit_code == 0
+    assert "Solver:              classical" in output
+    assert "5 3 4 | 6 7 8 | 9 1 2" in output
+
+
+def test_main_reads_puzzle_from_file(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    puzzle_path = tmp_path / "puzzle.txt"
+    puzzle_path.write_text(PUZZLE_TEXT, encoding="utf-8")
+
+    exit_code = main(
+        [
+            "--input-file",
+            str(puzzle_path),
+            "--classical",
+        ]
+    )
+    output = capsys.readouterr().out
+
+    assert exit_code == 0
+    assert "Solver:              classical" in output
+    assert "Solution" in output
+
+
+def test_main_reports_missing_input_file(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    missing_path = tmp_path / "missing.txt"
+
+    with pytest.raises(SystemExit) as error:
+        main(["--input-file", str(missing_path), "--classical"])
+
+    captured = capsys.readouterr()
+
+    assert error.value.code == 2
+    assert "missing.txt" in captured.err
+
+
+def test_main_requires_one_input_source(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    with pytest.raises(SystemExit) as error:
+        main([])
+
+    captured = capsys.readouterr()
+
+    assert error.value.code == 2
+    assert "required" in captured.err
+
+
+def test_main_rejects_multiple_input_sources(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    puzzle_path = tmp_path / "puzzle.txt"
+    puzzle_path.write_text(PUZZLE_TEXT, encoding="utf-8")
+
+    with pytest.raises(SystemExit) as error:
+        main(
+            [
+                PUZZLE_TEXT,
+                "--input-file",
+                str(puzzle_path),
+                "--classical",
+            ]
+        )
+
+    captured = capsys.readouterr()
+
+    assert error.value.code == 2
+    assert "not allowed with argument" in captured.err
+
+
+def test_main_prints_version(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    with pytest.raises(SystemExit) as error:
+        main(["--version"])
+
+    output = capsys.readouterr().out
+
+    assert error.value.code == 0
+    assert "ml-sudoku-solver 0.1.0" in output
