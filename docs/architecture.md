@@ -174,7 +174,29 @@ The model supports:
 - training from an `MLDataSplit`,
 - training directly from feature and target arrays,
 - prediction,
-- accuracy evaluation.
+- accuracy evaluation,
+- persistence with joblib.
+
+### Model Persistence
+
+`SudokuRandomForest.save()` serializes the fitted `RandomForestClassifier` to a joblib file. `SudokuRandomForest.load()` validates the deserialized object and returns a new wrapper around the restored classifier.
+
+```text
+Training data
+     |
+     v
+Random Forest training
+     |
+     v
+models/sudoku_random_forest.joblib
+     |
+     v
+Loaded SudokuRandomForest
+```
+
+The persistence test verifies that predictions and learned digit classes remain identical after a save-load round trip. Model artifacts are generated locally and excluded from version control.
+
+Joblib uses pickle-compatible deserialization. Model files must therefore come from trusted sources.
 
 ### Evaluation
 

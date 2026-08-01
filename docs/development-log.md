@@ -1015,3 +1015,104 @@ Result:
 ### Next Step
 
 Repeat the experiment across multiple seeds and report mean values and variability, or add formal puzzle-generation and uniqueness constraints before making stronger difficulty claims.
+
+---
+## Commit 19 - Model Persistence
+
+**Commit:** `feat: add model persistence`
+
+### Objective
+
+Save a trained Random Forest and restore it in a later process so that solver tools do not need to retrain the model on every invocation.
+
+### Approach
+
+The fitted scikit-learn `RandomForestClassifier` is serialized with joblib. Loading creates a new `SudokuRandomForest` wrapper around the restored classifier.
+
+```text
+Generate training data
+        |
+        v
+Train Random Forest
+        |
+        v
+Save joblib artifact
+        |
+        v
+Load model later
+        |
+        v
+Predict without retraining
+```
+
+### Implemented
+
+- Added joblib as an explicit project dependency.
+- Added `SudokuRandomForest.save()`.
+- Added `SudokuRandomForest.load()`.
+- Created missing parent directories when saving a model.
+- Validated that loaded files contain a `RandomForestClassifier`.
+- Added a training script that reports hold-out accuracy and saves the model.
+- Excluded generated `.joblib` artifacts and Python package metadata from Git.
+- Added round-trip and invalid-object tests.
+- Added a narrowly scoped pytest filter for a third-party joblib deprecation warning with NumPy 2.5.
+
+### Usage
+
+Train and save the default model:
+
+```bash
+python scripts/train_model.py
+```
+
+The generated artifact is stored at:
+
+```text
+models/sudoku_random_forest.joblib
+```
+
+Load the trained model:
+
+```python
+from sudoku_ml.model.random_forest import SudokuRandomForest
+
+model = SudokuRandomForest.load(
+    "models/sudoku_random_forest.joblib"
+)
+```
+
+### Verification
+
+The persistence test compares predictions before saving with predictions after loading. It also verifies that the learned classes remain unchanged:
+
+```text
+[1 2 3 4 5 6 7 8 9]
+```
+
+Result:
+
+`87 passed`
+
+### Artifact Management
+
+Trained model files are local generated artifacts and are excluded through `.gitignore`:
+
+```gitignore
+# Trained model artifacts
+models/*.joblib
+```
+
+Editable-install metadata is excluded separately:
+
+```gitignore
+# Python packaging metadata
+*.egg-info/
+```
+
+### Security
+
+Joblib files must only be loaded from trusted sources. Joblib relies on pickle-compatible deserialization, which can execute arbitrary code contained in a malicious file.
+
+### Conclusion
+
+The trained Random Forest can now be reused across processes without repeating dataset generation and model training. This provides the foundation for a command-line interface that solves user-provided Sudoku grids with a saved model.

@@ -95,6 +95,26 @@ python scripts/evaluate_difficulty_levels.py
 
 Compares both solver strategies at removal rates from 0.50 to 0.70. The report includes valid solution rates, runtime ratios, average backtracks, backtrack reduction, and average ML decisions per puzzle. Removal rate is treated as a proxy for difficulty rather than a formal Sudoku difficulty rating.
 
+### Train and Save a Model
+
+```bash
+python scripts/train_model.py
+```
+
+Trains the Random Forest, evaluates it on the hold-out test data, and stores the fitted estimator at `models/sudoku_random_forest.joblib`. Generated model artifacts are excluded from Git.
+
+A saved model can be loaded without retraining:
+
+```python
+from sudoku_ml.model.random_forest import SudokuRandomForest
+
+model = SudokuRandomForest.load(
+    "models/sudoku_random_forest.joblib"
+)
+```
+
+Only load joblib files from trusted sources. Deserializing an untrusted file can execute arbitrary code.
+
 ## Hybrid Solver
 
 `HybridSudokuSolver` solves complete puzzles while preserving Sudoku validity. It selects constrained cells first, ranks ambiguous candidates with the trained Random Forest, and uses backtracking when a prediction leads to a dead end.

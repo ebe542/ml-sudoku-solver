@@ -1,9 +1,12 @@
-import numpy as np
+from pathlib import Path
 
+import joblib
+import numpy as np
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import accuracy_score
 
 from sudoku_ml.data.split import MLDataSplit
-from sklearn.metrics import accuracy_score
+
 
 class SudokuRandomForest:
     """Random Forest baseline model for Sudoku digit prediction."""
@@ -35,6 +38,34 @@ class SudokuRandomForest:
     def classes(self) -> np.ndarray:
         """Return the digit classes learned by the model."""
         return self.model.classes_
+
+    def save(self, path: str | Path) -> None:
+        """Save the trained Random Forest model to a file."""
+        model_path = Path(path)
+        model_path.parent.mkdir(
+            parents=True,
+            exist_ok=True,
+        )
+
+        joblib.dump(
+            self.model,
+            model_path
+        )
+
+    @classmethod
+    def load(cls, path: str | Path) -> "SudokuRandomForest":
+        """Load a Random Forest model from a file."""
+        loaded_model = joblib.load(path)
+
+        if not isinstance(loaded_model, RandomForestClassifier):
+            raise TypeError(
+                "The file does not contain a RandomForestClassifier."
+            )
+
+        instance = cls()
+        instance.model = loaded_model
+
+        return instance
 
     def evaluate(self, data: MLDataSplit) -> float:
         """Evaluate the model on the test data."""
