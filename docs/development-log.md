@@ -1502,3 +1502,127 @@ Result:
 ### Conclusion
 
 The evaluation pipeline can now verify exact solver output against an unambiguous ground truth. Both solvers achieved a 100% exact match rate in the current experiment, while the search-effort results show that ML guidance can help substantially at some removal rates but can also be neutral or slightly harmful at others.
+
+---
+## Commit 23 - Repeated Evaluation Across Seeds
+
+**Commit:** `feat: add repeated solver evaluation across seeds`
+
+### Objective
+
+Measure how strongly solver results depend on the randomly generated evaluation puzzle set instead of drawing conclusions from a single evaluation seed.
+
+### Experimental Design
+
+For each removal rate, the experiment:
+
+1. Creates one deterministic training split.
+2. Trains one Random Forest.
+3. Generates three independent unique-puzzle evaluation sets.
+4. Evaluates both solvers on each set.
+5. Aggregates metrics across runs.
+
+The trained model remains fixed across evaluation seeds. This isolates evaluation-sample variability and avoids conflating it with variation from model training.
+
+### Summary Statistics
+
+`MetricSummary` records:
+
+- arithmetic mean,
+- population standard deviation,
+- minimum,
+- maximum.
+
+Population standard deviation describes the spread of the selected runs. It is not a confidence interval and should not be interpreted as inferential statistical evidence.
+
+### Implemented
+
+- Added reusable metric summaries.
+- Added repeated result structures by removal rate.
+- Added repeated evaluation across configurable seeds.
+- Reused one trained model per removal rate.
+- Generated independent unique-solution datasets for every run.
+- Aggregated exact match rate, runtime, runtime ratio, backtracks, backtrack reduction, and ML decisions.
+- Added validation for rates, seeds, metric values, and puzzle counts.
+- Added a terminal report using mean and population standard deviation.
+- Added unit and integration tests.
+
+### Usage
+
+Run the repeated experiment from the project root:
+
+```bash
+python scripts/evaluate_repeated_solvers.py
+```
+
+### Evaluation Configuration
+
+```text
+Removal rates: 0.50, 0.60, 0.65
+Evaluation seeds: 101, 123, 202
+Runs per removal rate: 3
+Training solutions per rate: 100
+Evaluation puzzles per run: 10
+Random Forest estimators: 100
+Training random seed: 42
+Evaluation data: unique-solution puzzles
+```
+
+### Solution Match and Runtime
+
+Values are mean plus or minus population standard deviation.
+
+| Removal rate | Hybrid match | Classical match | Hybrid runtime | Classical runtime | Runtime ratio |
+|---:|---:|---:|---:|---:|---:|
+| 50% | 100.00% +/- 0.00 | 100.00% +/- 0.00 | 0.65 +/- 0.04 ms | 0.63 +/- 0.02 ms | 1.03 +/- 0.02 |
+| 60% | 100.00% +/- 0.00 | 100.00% +/- 0.00 | 20.30 +/- 8.13 ms | 1.76 +/- 0.26 ms | 11.22 +/- 3.14 |
+| 65% | 100.00% +/- 0.00 | 100.00% +/- 0.00 | 57.75 +/- 3.70 ms | 3.94 +/- 0.43 ms | 14.77 +/- 1.40 |
+
+### Search Effort
+
+| Removal rate | Hybrid backtracks | Classical backtracks | Reduction | ML decisions |
+|---:|---:|---:|---:|---:|
+| 50% | 0.00 +/- 0.00 | 0.00 +/- 0.00 | 0.00% +/- 0.00 | 0.00 +/- 0.00 |
+| 60% | 10.73 +/- 7.29 | 11.87 +/- 6.42 | 13.52% +/- 24.68 | 1.27 +/- 0.54 |
+| 65% | 29.20 +/- 6.56 | 58.33 +/- 13.15 | 45.39% +/- 22.08 | 3.60 +/- 0.24 |
+
+### Interpretation
+
+Both solvers maintained a 100% exact match rate across all repeated runs.
+
+At 50%, no ambiguous candidate decisions were required. Runtime differences at this scale are measurement noise rather than meaningful solver performance differences.
+
+At 60%, the mean backtrack reduction was positive at 13.52%, but its standard deviation was 24.68 percentage points. This high variability explains why the single-seed experiment in Commit 22 showed a negative result. Candidate-ordering benefit at this rate depends strongly on the sampled puzzles.
+
+At 65%, the hybrid solver reduced backtracking by 45.39% on average. The 22.08-point standard deviation remains substantial, but the aggregate result is more consistently favorable than at 60%.
+
+The classical solver remained substantially faster whenever ML inference was used. Reduced search effort does not offset repeated feature generation and Random Forest prediction costs.
+
+### Testing
+
+The new tests cover:
+
+- exact summary-statistic calculation,
+- rejection of empty metric collections,
+- repeated integration across two seeds,
+- result and seed preservation,
+- empty and invalid removal-rate collections,
+- empty evaluation-seed collections,
+- invalid evaluation puzzle counts.
+
+Result:
+
+`130 passed`
+
+### Limitations
+
+- Only three evaluation seeds are used.
+- Each run contains only 10 puzzles per removal rate.
+- Population standard deviation is descriptive and not a confidence interval.
+- The training seed and trained model remain fixed.
+- Removal rate is not a formal Sudoku difficulty measure.
+- Runtime is sensitive to local system load.
+
+### Conclusion
+
+Repeated evaluation reveals that single-seed backtracking results can be unstable, especially at a removal rate of 0.60. The average 0.65 result still supports a useful ML search-ordering effect, while runtime measurements consistently favor the classical solver.

@@ -369,6 +369,28 @@ The unique-solution experiment trains the Random Forest on the existing random-r
 
 All search-effort values are averages per puzzle. Exact match rates of 100% confirm that both solvers reproduce the unique ground truth. The hybrid ordering is not uniformly better: it increases backtracking slightly at 60% but reduces it substantially at 65%.
 
+### Repeated Evaluation
+
+The repeated evaluation trains one deterministic model per removal rate and evaluates it on multiple independently seeded unique-puzzle datasets. Keeping the trained model fixed isolates variation caused by the evaluation sample rather than mixing model-training and puzzle-sampling variation.
+
+`MetricSummary` stores the mean, population standard deviation, minimum, and maximum of each metric. `RepeatedRemovalRateResult` groups summaries for exact match rate, runtime, runtime ratio, backtracking, backtrack reduction, and ML decisions.
+
+Three runs with evaluation seeds 101, 123, and 202 produced the following mean and population standard deviation:
+
+| Removal rate | Hybrid match | Classical match | Hybrid runtime | Classical runtime | Runtime ratio |
+|---:|---:|---:|---:|---:|---:|
+| 50% | 100.00% +/- 0.00 | 100.00% +/- 0.00 | 0.65 +/- 0.04 ms | 0.63 +/- 0.02 ms | 1.03 +/- 0.02 |
+| 60% | 100.00% +/- 0.00 | 100.00% +/- 0.00 | 20.30 +/- 8.13 ms | 1.76 +/- 0.26 ms | 11.22 +/- 3.14 |
+| 65% | 100.00% +/- 0.00 | 100.00% +/- 0.00 | 57.75 +/- 3.70 ms | 3.94 +/- 0.43 ms | 14.77 +/- 1.40 |
+
+| Removal rate | Hybrid backtracks | Classical backtracks | Reduction | ML decisions |
+|---:|---:|---:|---:|---:|
+| 50% | 0.00 +/- 0.00 | 0.00 +/- 0.00 | 0.00% +/- 0.00 | 0.00 +/- 0.00 |
+| 60% | 10.73 +/- 7.29 | 11.87 +/- 6.42 | 13.52% +/- 24.68 | 1.27 +/- 0.54 |
+| 65% | 29.20 +/- 6.56 | 58.33 +/- 13.15 | 45.39% +/- 22.08 | 3.60 +/- 0.24 |
+
+The large relative spread at 60% shows that a single evaluation seed can give a misleading impression of candidate-ordering quality. The 65% result remains positive across the aggregate but still exhibits substantial puzzle-sample variation.
+
 ## Current Limitation
 
-The original removal-rate evaluation covers 20 potentially non-unique puzzles per rate, while the unique-solution evaluation covers 10 puzzles per rate and one pair of random seeds. Puzzle difficulty is still approximated through the number of removed cells rather than a formal rating. Repeated experiments with more seeds and larger unique evaluation sets are required for statistically stronger conclusions.
+The repeated unique-solution evaluation covers three seeds with 10 puzzles per rate. This is stronger than a single-run result but remains a small experiment. The reported standard deviation is descriptive population variability across these three selected runs, not a confidence interval. Puzzle difficulty is still approximated through the number of removed cells rather than a formal rating, and training-seed variability has not yet been measured.

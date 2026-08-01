@@ -153,6 +153,14 @@ python scripts/evaluate_unique_solvers.py
 
 Compares the hybrid and classical solvers on identical uniquely solvable puzzles at removal rates of 0.50, 0.60, and 0.65. In addition to validity, the evaluation checks whether each solver output exactly matches the unique stored solution.
 
+### Repeat Evaluation Across Seeds
+
+```bash
+python scripts/evaluate_repeated_solvers.py
+```
+
+Repeats the unique-solution comparison across several independently generated puzzle sets and reports mean, population standard deviation, minimum, and maximum through reusable metric summaries. This distinguishes stable behavior from results that depend strongly on one evaluation seed.
+
 ## Hybrid Solver
 
 `HybridSudokuSolver` solves complete puzzles while preserving Sudoku validity. It selects constrained cells first, ranks ambiguous candidates with the trained Random Forest, and uses backtracking when a prediction leads to a dead end.
