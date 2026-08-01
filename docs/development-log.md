@@ -28,8 +28,7 @@ The repository provides a clean foundation for further development.
 ---
 ## Commit 2 — Sudoku Grid Representation
 
-**Commit:**
-`feat: add sudoku grid representation`
+**Commit:** `feat: add sudoku grid representation`
 
 ### Objective
 
@@ -54,8 +53,7 @@ Result:
 ---
 ## Commit 3 — Sudoku Grid Validation
 
-**Commit:**
-`feat: add sudoku grid validation`
+**Commit:** `feat: add sudoku grid validation`
 
 ### Objective
 
@@ -520,3 +518,100 @@ valid Sudoku candidates.
 
 The experiment confirms that representing local interactions between candidate sets significantly improves model performance without
 changing the underlying learning algorithm.
+
+---
+## Commit 13 — Feature Importance Analysis
+
+**Commit:** `feat: add feature importance analysis`
+
+### Objective
+
+Improve the interpretability of the Random Forest model by analyzing which input features contribute most to the prediction.
+
+The goal is not to improve prediction accuracy but to better understand how the model makes its decisions.
+
+### Implemented
+
+- Added grouped feature importance analysis.
+- Added readable names for all 118 features.
+- Added ranking of the most important individual features.
+- Added unit tests for feature-name mapping.
+- Moved reusable analysis code into the `analysis` package.
+
+### Usage
+
+Run the analysis from the project root:
+
+```bash
+python -m sudoku_ml.analysis.analyze_feature_importance
+```
+
+The script trains the current Random Forest model using the default configuration and reports:
+
+- feature importance by feature group,
+- the most important individual features,
+- a ranked feature importance summary.
+  
+### Feature Groups
+
+The feature vector now consists of six logical groups:
+
+| Feature Group | Features |
+|--------------|---------:|
+| Grid values | 81 |
+| Cell position | 1 |
+| Candidate indicators | 9 |
+| Row interactions | 9 |
+| Column interactions | 9 |
+| Block interactions | 9 |
+
+### Feature Contribution by Group
+
+| Feature Group | Importance |
+|--------------|-----------:|
+| Grid values | 30.97 % |
+| Candidate indicators | 28.42 % |
+| Row interactions | 13.18 % |
+| Column interactions | 13.04 % |
+| Block interactions | 10.95 % |
+| Cell position | 3.43 % |
+
+### Key Findings
+
+The original Sudoku grid remains the single most important source of information.
+
+The candidate indicators contribute almost as much information as the entire grid representation.
+
+The interaction features account for approximately **37.17%** of the total feature importance:
+
+- Row interactions: **13.18%**
+- Column interactions: **13.04%**
+- Block interactions: **10.95%**
+
+This explains the significant improvement from **50.25%** to **66.50%** prediction accuracy after introducing candidate interaction features.
+
+### Most Important Individual Features
+
+The highest-ranked individual features are:
+
+1. `candidate_3`
+2. `target_cell_index`
+3. `candidate_4`
+4. `candidate_6`
+5. `candidate_9`
+
+The complete ranking is available through the analysis script.
+
+### Discussion
+
+One unexpected observation is the relatively high importance of the target cell position.
+
+Although the position contributes only **3.43%** of the overall feature importance, it is the second most important individual feature. This may indicate that the Random Forest learns position-dependent patterns from the generated training data.
+
+This observation should be investigated in future experiments.
+
+### Conclusion
+
+The analysis confirms that the improvements achieved in previous commits are supported by meaningful feature usage rather than random variation.
+
+Both candidate indicators and candidate interaction features provide substantial information to the Random Forest and are responsible for a large part of the overall prediction performance.

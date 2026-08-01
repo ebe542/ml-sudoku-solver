@@ -42,3 +42,23 @@ The project does not perform image recognition or OCR. The input is a structured
 This is a self-directed educational project created for learning and portfolio purposes.
 
 The project is experimental and is not intended to represent a production-grade Sudoku solving system.
+
+## Analysis Tools
+
+### Baseline Evaluation
+
+```bash
+python scripts/evaluate_baseline.py
+```
+
+### Error Analysis
+
+```bash
+python scripts/analyze_errors.py
+```
+
+### Feature Importance
+
+```bash
+python -m sudoku_ml.analysis.analyze_feature_importance
+```
