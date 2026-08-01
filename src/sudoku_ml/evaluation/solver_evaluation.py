@@ -51,6 +51,14 @@ class SolverEvaluationResult:
 
         return self.backtracks / self.total_puzzles
 
+    @property
+    def average_ml_decisions(self) -> float:
+        """Return the average number of ML decisions per puzzle."""
+        if self.total_puzzles == 0:
+            return 0.0
+
+        return self.ml_decisions / self.total_puzzles
+
 
 def evaluate_solver(solver: HybridSudokuSolver, puzzles: np.ndarray) -> SolverEvaluationResult:
     """Evaluate the hybrid solver on multiple Sudoku puzzles."""

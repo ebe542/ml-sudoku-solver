@@ -185,8 +185,8 @@ Contains reusable evaluation logic, including:
 - solution and validity rates,
 - runtime measurement,
 - deterministic-step, ML-decision, and backtracking statistics.
-- direct comparison of ML-guided and classical candidate ordering on identical
-  puzzle sets.
+- direct comparison of ML-guided and classical candidate ordering on identical puzzle sets.
+- comparison across multiple removal rates with a separately trained model for each rate.
 
 ### Analysis
 
@@ -209,8 +209,7 @@ Machine-learning output affects search order only. Candidate filtering and the f
 
 ### Classical Solver
 
-`ClassicalSudokuSolver` reuses the same validation, minimum-remaining-values cell selection, and backtracking implementation as the hybrid solver. It
-replaces ML-based candidate ranking with ascending numerical order.
+`ClassicalSudokuSolver` reuses the same validation, minimum-remaining-values cell selection, and backtracking implementation as the hybrid solver. It replaces ML-based candidate ranking with ascending numerical order.
 
 Keeping the solving engine identical isolates candidate ordering as the only experimental difference between both strategies.
 
@@ -255,9 +254,28 @@ A direct comparison on 20 puzzles with a removal rate of 0.65 produced:
 | Backtracks | 494 | 1,145 |
 | Average backtracks | 24.70 | 57.25 |
 
-ML-guided ordering reduced backtracking by approximately 56.9%. However, feature calculation and Random Forest inference made the hybrid solver about 33
-times slower. The model improves search order but does not improve total runtime in the current implementation.
+ML-guided ordering reduced backtracking by approximately 56.9%. However, feature calculation and Random Forest inference made the hybrid solver about 33 times slower. The model improves search order but does not improve total runtime in the current implementation.
+
+The extended evaluation compared 20 puzzles per removal rate:
+
+| Removal rate | Hybrid valid | Classical valid | Hybrid runtime | Classical runtime | Runtime ratio |
+|---:|---:|---:|---:|---:|---:|
+| 50% | 100.00% | 100.00% | 19.62 ms | 0.96 ms | 20.35x |
+| 60% | 100.00% | 100.00% | 72.21 ms | 2.06 ms | 34.98x |
+| 65% | 100.00% | 100.00% | 138.21 ms | 4.28 ms | 32.27x |
+| 70% | 100.00% | 100.00% | 376.30 ms | 8.93 ms | 42.12x |
+
+Search effort increased with the removal rate:
+
+| Removal rate | Hybrid backtracks | Classical backtracks | Reduction | ML decisions |
+|---:|---:|---:|---:|---:|
+| 50% | 0.00 | 0.00 | 0.00% | 1.30 |
+| 60% | 6.65 | 6.90 | 3.62% | 4.80 |
+| 65% | 24.70 | 57.25 | 56.86% | 9.30 |
+| 70% | 138.40 | 196.55 | 29.59% | 25.50 |
+
+Backtracks and ML decisions are averages per puzzle. The results show that ML guidance can reduce search effort, but its relative benefit is not monotonic and does not offset inference cost.
 
 ## Current Limitation
 
-The current comparison covers only 20 puzzles at one removal rate. Puzzle difficulty is approximated through the number of removed cells rather than a formal Sudoku difficulty rating. Multiple removal rates and larger evaluation sets are still required for a stronger conclusion.
+The current evaluation covers 20 puzzles per removal rate and one pair of random seeds. Puzzle difficulty is approximated through the number of removed cells; the generator does not assign formal difficulty ratings or guarantee unique solutions. Repeated experiments with more seeds and larger evaluation sets are required for statistically stronger conclusions.

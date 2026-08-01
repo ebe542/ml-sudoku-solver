@@ -87,9 +87,16 @@ python scripts/compare_solvers.py
 
 Compares ML-guided and ascending numerical candidate ordering on the same puzzles. At a removal rate of 0.65, ML guidance reduced backtracking by 56.9%, but the classical solver remained approximately 33 times faster.
 
+### Removal-Rate Evaluation
+
+```bash
+python scripts/evaluate_difficulty_levels.py
+```
+
+Compares both solver strategies at removal rates from 0.50 to 0.70. The report includes valid solution rates, runtime ratios, average backtracks, backtrack reduction, and average ML decisions per puzzle. Removal rate is treated as a proxy for difficulty rather than a formal Sudoku difficulty rating.
+
 ## Hybrid Solver
 
-`HybridSudokuSolver` solves complete puzzles while preserving Sudoku validity.
-It selects constrained cells first, ranks ambiguous candidates with the trained Random Forest, and uses backtracking when a prediction leads to a dead end.
+`HybridSudokuSolver` solves complete puzzles while preserving Sudoku validity. It selects constrained cells first, ranks ambiguous candidates with the trained Random Forest, and uses backtracking when a prediction leads to a dead end.
 
 In the current 20-puzzle evaluation at a removal rate of 0.5, the solver reached a 100% valid solution rate with an average runtime of 20.64 ms per puzzle.

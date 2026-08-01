@@ -24,6 +24,7 @@ def test_solver_evaluation_calculates_summary_metrics() -> None:
     assert result.valid_solution_rate == pytest.approx(0.7)
     assert result.average_runtime_seconds == pytest.approx(0.2)
     assert result.average_backtracks == pytest.approx(2.0)
+    assert result.average_ml_decisions == pytest.approx(4.0)
 
 
 def test_solver_evaluation_handles_empty_evaluation() -> None:
@@ -41,6 +42,7 @@ def test_solver_evaluation_handles_empty_evaluation() -> None:
     assert result.valid_solution_rate == 0.0
     assert result.average_runtime_seconds == 0.0
     assert result.average_backtracks == 0.0
+    assert result.average_ml_decisions == 0.0
 
 
 def test_evaluate_solver_evaluates_multiple_puzzles() -> None:
@@ -77,3 +79,4 @@ def test_evaluate_solver_evaluates_multiple_puzzles() -> None:
     assert result.ml_decisions == 0
     assert result.backtracks == 0
     assert result.total_runtime_seconds >= 0.0
+    assert result.average_ml_decisions == 0.0

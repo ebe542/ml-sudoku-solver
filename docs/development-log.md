@@ -1,7 +1,6 @@
 # Development Log
 
-This document records the development process of the project.
-The project is developed as a self-study machine learning project.
+This document records the development process of the project. The project is developed as a self-study machine learning project.
 
 ---
 ## Commit 1 — Project Initialization
@@ -256,7 +255,7 @@ Each feature vector contains:
 
 The split is performed before converting the puzzles into cell-level machine learning samples.
 
-This is important because one Sudoku solution can produce multiple incomplete puzzles. Splitting individual cell samples could allow related puzzles to appear in both the training and test sets. 
+This is important because one Sudoku solution can produce multiple incomplete puzzles. Splitting individual cell samples could allow related puzzles to appear in both the training and test sets.
 
 By splitting complete solutions first, the test set contains Sudoku structures that were not used to create the training data.
 
@@ -414,7 +413,7 @@ The candidate information is calculated exclusively from the incomplete Sudoku p
 The same Random Forest configuration was evaluated before and after adding the constraint features.
 
 | Configuration | Features | Test Accuracy |
-| ------------- | -------- | ------------- |  
+| ------------- | -------- | ------------- |
 | Baseline | 82 | 11.75% |
 | Constraint features | 91 | 50.25% |
 
@@ -437,8 +436,7 @@ The experiment therefore provides evidence that the feature representation has a
 
 The 50.25% accuracy measures cell-level digit prediction.
 
-It does not represent the ability to solve a complete Sudoku puzzle.
-The model still predicts individual target cells rather than producing a complete solved grid.
+It does not represent the ability to solve a complete Sudoku puzzle. The model still predicts individual target cells rather than producing a complete solved grid.
 
 ---
 ## Commit 11 — Error Analysis — Candidate Count
@@ -540,7 +538,7 @@ The script trains the current Random Forest model using the default configuratio
 - feature importance by feature group,
 - the most important individual features,
 - a ranked feature importance summary.
-  
+
 ### Feature Groups
 
 The feature vector now consists of six logical groups:
@@ -743,8 +741,7 @@ Select cell with fewest candidates
 
 ### Design Decision
 
-The model only determines the order in which valid candidates are attempted.
-Sudoku constraints filter all candidates, while backtracking ensures that a locally plausible prediction cannot make the final solution invalid.
+The model only determines the order in which valid candidates are attempted. Sudoku constraints filter all candidates, while backtracking ensures that a locally plausible prediction cannot make the final solution invalid.
 
 ### Testing
 
@@ -897,8 +894,7 @@ Evaluation random seed: 123
 
 ### Interpretation
 
-The hybrid solver required **651 fewer backtracks**, a reduction of approximately **56.9%** compared with ascending numerical candidate ordering.
-This demonstrates that the model provides useful information for choosing promising search branches.
+The hybrid solver required **651 fewer backtracks**, a reduction of approximately **56.9%** compared with ascending numerical candidate ordering. This demonstrates that the model provides useful information for choosing promising search branches.
 
 Despite the smaller search tree, the hybrid solver averaged **144.88 ms** per puzzle, compared with **4.39 ms** for the classical solver. The hybrid solver was therefore approximately **33 times slower**.
 
@@ -922,3 +918,100 @@ Result:
 ### Conclusion
 
 The Random Forest improves candidate ordering, but it does not currently improve end-to-end runtime. A broader evaluation across multiple removal rates is needed to determine how this trade-off changes with puzzle difficulty.
+
+---
+## Commit 18 - Solver Evaluation Across Removal Rates
+
+**Commit:** `feat: evaluate solver across removal rates`
+
+### Objective
+
+Measure how the trade-off between ML-guided and classical candidate ordering changes as more cells are removed from the generated Sudoku puzzles.
+
+### Terminology
+
+Removal rate is used as a reproducible proxy for difficulty. It is not a formal Sudoku difficulty rating: puzzles with the same number of empty cells can require very different solving techniques and search effort.
+
+### Implemented
+
+- Added `RemovalRateResult` for one solver comparison and removal rate.
+- Added `DifficultyEvaluationResult` for the complete experiment.
+- Added reusable evaluation across multiple removal rates.
+- Trained a separate Random Forest for each evaluated removal rate.
+- Used identical puzzle sets for hybrid and classical comparisons at each rate.
+- Added valid-solution rates, runtime ratios, and backtrack reduction.
+- Added average ML decisions per puzzle.
+- Added parameter validation and integration tests.
+- Added a command-line experiment with two readable result tables.
+
+### Usage
+
+Run the experiment from the project root:
+
+```bash
+python scripts/evaluate_difficulty_levels.py
+```
+
+### Evaluation Configuration
+
+```text
+Removal rates: 0.50, 0.60, 0.65, 0.70
+Training solutions per rate: 100
+Training/test split: 80% / 20%
+Evaluation puzzles per rate: 20
+Random Forest estimators: 100
+Training random seed: 42
+Evaluation random seed: 123
+```
+
+### Solution Quality and Runtime
+
+| Removal rate | Hybrid valid | Classical valid | Hybrid runtime | Classical runtime | Runtime ratio |
+|---:|---:|---:|---:|---:|---:|
+| 50% | 100.00% | 100.00% | 19.62 ms | 0.96 ms | 20.35x |
+| 60% | 100.00% | 100.00% | 72.21 ms | 2.06 ms | 34.98x |
+| 65% | 100.00% | 100.00% | 138.21 ms | 4.28 ms | 32.27x |
+| 70% | 100.00% | 100.00% | 376.30 ms | 8.93 ms | 42.12x |
+
+### Search Effort
+
+Backtracks and ML decisions are reported as averages per puzzle.
+
+| Removal rate | Hybrid backtracks | Classical backtracks | Reduction | Hybrid ML decisions |
+|---:|---:|---:|---:|---:|
+| 50% | 0.00 | 0.00 | 0.00% | 1.30 |
+| 60% | 6.65 | 6.90 | 3.62% | 4.80 |
+| 65% | 24.70 | 57.25 | 56.86% | 9.30 |
+| 70% | 138.40 | 196.55 | 29.59% | 25.50 |
+
+### Interpretation
+
+Both solvers produced valid solutions for every evaluated puzzle. The number of ML decisions and the search effort increased substantially as more cells were removed.
+
+The largest relative backtrack reduction occurred at a removal rate of 0.65, where ML guidance reduced backtracking by **56.86%**. At 0.70, the hybrid solver still reduced backtracking by **29.59%**, but the relative benefit did not increase monotonically with the removal rate.
+
+The hybrid solver was between approximately **20 and 42 times slower** across the experiment. Feature generation and Random Forest inference therefore cost more time than the additional search performed by the classical solver.
+
+The experiment strengthens the conclusion from Commit 17:
+
+```text
+ML guidance -> fewer failed search paths at some removal rates
+Classical   -> consistently lower end-to-end runtime
+```
+
+### Testing
+
+Result:
+
+`85 passed`
+
+### Limitations
+
+- Only 20 puzzles were evaluated per removal rate.
+- Results use one training seed and one evaluation seed.
+- Removal rate is not a formal measure of Sudoku difficulty.
+- Generated puzzles are not checked for a unique solution.
+
+### Next Step
+
+Repeat the experiment across multiple seeds and report mean values and variability, or add formal puzzle-generation and uniqueness constraints before making stronger difficulty claims.
