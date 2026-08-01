@@ -4,7 +4,8 @@
 
 ## Project Status
 
-Early development.
+The project includes a hybrid solver that combines deterministic Sudoku
+constraints, machine-learning candidate ranking, and backtracking.
 
 ## Project Type
 
@@ -70,3 +71,9 @@ python scripts/evaluate_group_cross_validation.py
 ```
 
 Evaluates the model using solution-level groups to prevent related cell samples from appearing in both training and validation folds.
+
+## Hybrid Solver
+
+`HybridSudokuSolver` solves complete puzzles while preserving Sudoku validity.
+It selects constrained cells first, ranks ambiguous candidates with the trained
+Random Forest, and uses backtracking when a prediction leads to a dead end.

@@ -1,0 +1,78 @@
+import numpy as np
+
+from sudoku_ml.grid import SudokuGrid
+from sudoku_ml.model.random_forest import SudokuRandomForest
+from sudoku_ml.preprocessing.constraints import get_candidates
+from sudoku_ml.preprocessing.features import create_feature_vector
+
+
+class HybridSudokuSolver:
+    """Solve Sudoku grids using constraints and ML-guided backtracking."""
+
+    def __init__(self, model: SudokuRandomForest) -> None:
+        self.model = model
+
+    def solve(self, puzzle: SudokuGrid) -> SudokuGrid | None:
+        """Return a valid completed grid, or None if no solution exists."""
+        if not puzzle.is_valid():
+            raise ValueError("The puzzle must be a valid Sudoku grid.")
+
+        values = puzzle.values.copy()
+        if not self._solve(values):
+            return None
+
+        return SudokuGrid(values)
+
+    def _solve(self, grid: np.ndarray) -> bool:
+        choice = self._select_cell(grid)
+        if choice is None:
+            return True
+
+        row, column, candidates = choice
+        if not candidates:
+            return False
+
+        for digit in self._rank_candidates(grid, row, column, candidates):
+            grid[row, column] = digit
+            if self._solve(grid):
+                return True
+            grid[row, column] = 0
+
+        return False
+
+    @staticmethod
+    def _select_cell(grid: np.ndarray) -> tuple[int, int, set[int]] | None:
+        """Choose the empty cell with the fewest valid candidates."""
+        best: tuple[int, int, set[int]] | None = None
+
+        for row, column in np.argwhere(grid == 0):
+            candidates = get_candidates(grid, int(row), int(column))
+            if not candidates:
+                return int(row), int(column), candidates
+            if best is None or len(candidates) < len(best[2]):
+                best = int(row), int(column), candidates
+                if len(candidates) == 1:
+                    break
+
+        return best
+
+    def _rank_candidates(
+        self,
+        grid: np.ndarray,
+        row: int,
+        column: int,
+        candidates: set[int],
+    ) -> list[int]:
+        """Rank valid candidates using model probabilities."""
+        if len(candidates) == 1:
+            return list(candidates)
+
+        features = create_feature_vector(grid, row, column)[np.newaxis, :]
+        probabilities = self.model.predict_probabilities(features)[0]
+        probability_by_digit = dict(zip(self.model.classes, probabilities))
+
+        return sorted(
+            candidates,
+            key=lambda digit: probability_by_digit.get(digit, 0.0),
+            reverse=True,
+        )

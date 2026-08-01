@@ -712,3 +712,60 @@ solutions.
 
 Grouped cross-validation confirms that the current Random Forest and feature representation provide stable cell-level prediction performance
 while avoiding leakage between samples derived from the same Sudoku.
+
+---
+## Commit 15 — Hybrid ML Sudoku Solver
+
+**Commit:** `feat: add hybrid ML-guided Sudoku solver`
+
+### Objective
+
+Extend the cell-level classifier into a system capable of solving complete
+Sudoku puzzles without allowing invalid model predictions.
+
+### Approach
+
+The solver combines deterministic constraints with ML-guided backtracking:
+
+```text
+Incomplete Sudoku
+       │
+       ▼
+Select cell with fewest candidates
+       │
+       ├── one candidate ──→ deterministic placement
+       │
+       └── multiple candidates
+                   │
+                   ▼
+       Rank by Random Forest probability
+                   │
+                   ▼
+       Try candidates with backtracking
+```
+
+### Implemented
+
+- Added `HybridSudokuSolver`.
+- Added minimum-remaining-values cell selection.
+- Added candidate ranking based on Random Forest probabilities.
+- Added recursive backtracking for globally consistent solutions.
+- Preserved the original puzzle during solving.
+- Rejected structurally invalid input puzzles.
+- Exposed reusable single-cell feature generation.
+- Extended the Random Forest wrapper with probability and class access.
+
+### Design Decision
+
+The model only determines the order in which valid candidates are attempted.
+Sudoku constraints filter all candidates, while backtracking ensures that a
+locally plausible prediction cannot make the final solution invalid.
+
+### Testing
+
+The test suite verifies complete and valid solutions, preservation of given
+digits, input immutability, and rejection of conflicting puzzles.
+
+Result:
+
+`71 passed`

@@ -30,9 +30,13 @@ X_test / y_test                     │
                     ▼
           Random Forest Model
                     │
-          ┌─────────┴─────────┐
-          ▼                   ▼
-      Evaluation           Analysis
+          ┌─────────┼─────────┐
+          ▼         ▼         ▼
+      Evaluation  Analysis  Hybrid Solver
+                              │
+                              ▼
+                     Constraint-validated
+                       completed Sudoku
           │                   │
           ▼                   ▼
        Accuracy       Error Analysis
@@ -185,6 +189,19 @@ Contains tools for understanding model behavior, including:
 - confusion matrix evaluation,
 - feature-importance analysis.
 
+### Hybrid Solver
+
+The hybrid solver combines three mechanisms:
+
+1. Minimum-remaining-values cell selection prioritizes the most constrained
+   empty cell.
+2. Random Forest probabilities rank valid candidates when multiple choices
+   remain.
+3. Recursive backtracking reverses choices that lead to contradictions.
+
+Machine-learning output affects search order only. Candidate filtering and the
+final solution remain governed by deterministic Sudoku constraints.
+
 ## Current Results
 
 | Feature Representation | Test Accuracy |
@@ -204,6 +221,6 @@ Five-fold grouped cross-validation produced:
 
 ## Current Limitation
 
-The model predicts the digit for an individual empty cell.
-
-It does not yet solve an entire Sudoku puzzle or guarantee that a sequence of predictions produces a valid complete grid.
+The hybrid solver can complete an entire Sudoku, but its current evaluation is
+still focused on cell-level prediction accuracy. End-to-end benchmarks for
+solution rate, runtime, and backtracking effort have not yet been added.

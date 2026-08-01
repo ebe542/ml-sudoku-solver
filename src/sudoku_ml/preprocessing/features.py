@@ -7,7 +7,7 @@ from sudoku_ml.preprocessing.constraints import (
 )
 
 
-def _create_feature_vector(puzzle: np.ndarray, row: int, column: int) -> np.ndarray:
+def create_feature_vector(puzzle: np.ndarray, row: int, column: int) -> np.ndarray:
     """Create the feature vector for one empty Sudoku cell."""
     grid_features = puzzle.flatten().astype(np.float32)
     cell_index = row * 9 + column
@@ -48,7 +48,7 @@ def create_features_and_targets(dataset: SudokuDataset) -> tuple[np.ndarray, np.
 
         for row, column in empty_cells:
             features.append(
-                _create_feature_vector(
+                create_feature_vector(
                     puzzle,
                     int(row),
                     int(column),
@@ -72,7 +72,7 @@ def create_grouped_features_and_targets(dataset: SudokuDataset) -> tuple[np.ndar
 
         for row, column in empty_cells:
             features.append(
-                _create_feature_vector(
+                create_feature_vector(
                     puzzle,
                     int(row),
                     int(column),

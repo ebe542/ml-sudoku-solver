@@ -27,6 +27,15 @@ class SudokuRandomForest:
         """Predict Sudoku digits for the provided features."""
         return self.model.predict(X)
 
+    def predict_probabilities(self, X: np.ndarray) -> np.ndarray:
+        """Return class probabilities for the provided features."""
+        return self.model.predict_proba(X)
+
+    @property
+    def classes(self) -> np.ndarray:
+        """Return the digit classes learned by the model."""
+        return self.model.classes_
+
     def evaluate(self, data: MLDataSplit) -> float:
         """Evaluate the model on the test data."""
         predictions = self.predict(data.X_test)
