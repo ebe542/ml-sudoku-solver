@@ -228,6 +228,16 @@ Trains three separate Random Forest models on the same data while progressively 
 
 Without explicit Sudoku features, Top-1 accuracy is 11.38%, approximately the random baseline for nine digits. Candidate indicators raise it to 50.38%, and candidate interactions raise it further to 66.88%. This shows that domain-specific feature engineering provides most of the model's predictive ability.
 
+### Repeat Feature Ablation
+
+```bash
+python scripts/evaluate_repeated_feature_ablation.py
+```
+
+Repeats the cumulative 82-, 91-, and 118-feature comparison across independently generated training and test splits at removal rates of 0.50, 0.60, and 0.65. The report includes mean ranking metrics, probability-quality metrics, and population standard deviations across seeds.
+
+The repeated experiment confirms that raw grid features remain near random accuracy and that candidate features consistently provide the largest improvement. Interaction features improve ranking at every removal rate, although their incremental benefit decreases as more cells are removed.
+
 ## Hybrid Solver
 
 `HybridSudokuSolver` solves complete puzzles while preserving Sudoku validity. It selects constrained cells first, ranks ambiguous candidates with the trained Random Forest, and uses backtracking when a prediction leads to a dead end.

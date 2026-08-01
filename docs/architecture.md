@@ -587,8 +587,64 @@ Grid values and target position alone yield 11.38% Top-1 accuracy, close to the 
 
 The complete feature set has the best ranking but worse raw ECE and log loss than the 91-feature model. Ranking quality and probability calibration are different properties: the interaction features improve class ordering but produce underconfident raw probabilities. The low ECE of the weak 82-feature model does not indicate useful predictions; it mainly reflects that low confidence is consistent with low accuracy.
 
+### Repeated Feature Ablation
+
+The repeated ablation evaluates the same cumulative feature groups across several removal rates and random seeds. Unlike the repeated solver evaluation, every seed generates a new solution-level training/test split and trains three new Random Forest models. Its variation therefore includes training-data sampling, test-data sampling, and fitted-model variation.
+
+```text
+Removal rates 0.50 / 0.60 / 0.65
+                 |
+        Seeds 101 / 123 / 202
+                 |
+        New train/test split
+                 |
+       +---------+---------+
+       |         |         |
+       v         v         v
+  82 features 91 features 118 features
+       |         |         |
+       +---------+---------+
+                 |
+                 v
+       MetricSummary per model
+```
+
+`RepeatedFeatureConfigurationResult` contains summary statistics for ranking, confidence, calibration, and log loss. `RepeatedFeatureRemovalRateResult` groups all configurations for one removal rate, and `RepeatedFeatureAblationResult` records the seeds and all removal-rate results.
+
+Mean ranking results across three seeds were:
+
+| Removal rate | Features | Top-1 | Top-1 SD | Top-2 | Top-3 | MRR |
+|---:|---:|---:|---:|---:|---:|---:|
+| 50% | 82 | 11.17% | 1.07% | 22.88% | 33.75% | 0.3175 |
+| 50% | 91 | 51.46% | 2.00% | 84.38% | 97.21% | 0.7287 |
+| 50% | 118 | 64.50% | 1.27% | 89.08% | 98.00% | 0.8025 |
+| 60% | 82 | 11.28% | 0.30% | 22.85% | 33.51% | 0.3157 |
+| 60% | 91 | 37.95% | 1.40% | 69.27% | 88.92% | 0.6278 |
+| 60% | 118 | 46.60% | 1.44% | 75.52% | 92.12% | 0.6848 |
+| 65% | 82 | 12.63% | 0.40% | 23.78% | 34.81% | 0.3275 |
+| 65% | 91 | 32.31% | 0.28% | 61.67% | 82.72% | 0.5798 |
+| 65% | 118 | 39.81% | 0.31% | 67.69% | 86.35% | 0.6310 |
+
+Probability-quality means were:
+
+| Removal rate | Features | Confidence | ECE | ECE SD | Log loss |
+|---:|---:|---:|---:|---:|---:|
+| 50% | 82 | 18.16% | 0.0700 | 0.0104 | 2.2683 |
+| 50% | 91 | 42.47% | 0.1032 | 0.0123 | 1.0298 |
+| 50% | 118 | 35.41% | 0.2923 | 0.0110 | 1.1586 |
+| 60% | 82 | 18.23% | 0.0695 | 0.0021 | 2.2871 |
+| 60% | 91 | 32.87% | 0.0572 | 0.0070 | 1.3445 |
+| 60% | 118 | 28.53% | 0.1807 | 0.0190 | 1.4335 |
+| 65% | 82 | 18.22% | 0.0559 | 0.0034 | 2.2672 |
+| 65% | 91 | 29.29% | 0.0354 | 0.0054 | 1.4903 |
+| 65% | 118 | 25.96% | 0.1408 | 0.0050 | 1.5649 |
+
+The low Top-1 standard deviations show that the relative ordering of feature configurations is stable. Increasing removal rate reduces the information supplied by local constraints, so accuracy decreases for both feature-engineered models. Interaction features consistently improve ranking but consistently worsen raw ECE and log loss relative to the 91-feature model.
+
 ## Current Limitation
 
 The current Random Forest cannot reliably solve ambiguous puzzles without correction: Greedy exact match falls to 55% at 60% removal and 25% at 65% removal. Its 66.88% Top-1 accuracy is useful for search ordering but is insufficient for an unrecoverable decision sequence. The model remains a cell-level classifier rather than an end-to-end grid model.
 
-The probability and ablation experiments use one hold-out split at a removal rate of 0.50. Ranking, calibration, and feature contributions should therefore be repeated across random seeds and harder puzzle configurations. The ablation shows that the raw grid contributes little predictive ability by itself and that most performance comes from explicitly encoded Sudoku constraints.
+The repeated ablation covers three seeds and three removal rates, but this is still a small empirical sample. The raw grid contributes little predictive ability by itself, and most performance comes from explicitly encoded Sudoku constraints. The current model therefore remains dependent on feature engineering rather than learning Sudoku rules directly.
+
+The full feature set improves ranking but produces worse raw probability calibration than the candidate-indicator model. Calibration methods and alternative classifiers have not yet been compared. Cell-level metrics also remain distinct from complete-puzzle performance.

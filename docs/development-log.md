@@ -2352,3 +2352,143 @@ Repeat the feature-ablation experiment across several random seeds and removal r
 ### Conclusion
 
 The Random Forest does not learn Sudoku effectively from raw grid values alone. Explicit candidate indicators provide the largest performance gain, while interaction features further improve ranking among valid digits. The experiment demonstrates that domain-specific feature engineering, rather than the classifier alone, is responsible for most of the current model quality.
+
+---
+## Commit 29 - Repeated Feature-Ablation Analysis
+
+**Commit:** `feat: add repeated feature ablation`
+
+### Objective
+
+Verify whether the feature-ablation findings remain stable across independently generated datasets and higher removal rates.
+
+### Motivation
+
+Commit 28 used one solution-level split with a removal rate of 0.50 and random seed 42. Its clear result could still depend on that particular training and test sample. Repeating the entire experiment provides evidence about both stability and the influence of puzzle configuration.
+
+### Experimental Design
+
+For every removal rate and random seed, the evaluation:
+
+1. Generates a new collection of solved and incomplete Sudokus.
+2. Creates a new solution-level training/test split.
+3. Trains separate 82-, 91-, and 118-feature Random Forests.
+4. Calculates ranking and probability-quality metrics.
+5. Aggregates every metric using mean, population standard deviation, minimum, and maximum.
+
+```text
+3 removal rates
+       x
+3 random seeds
+       x
+3 feature configurations
+       =
+27 trained Random Forest models
+```
+
+Unlike the earlier repeated solver experiment, the model is not held constant across seeds. The reported variation combines changes in generated training data, generated test data, and fitted models.
+
+### Implemented
+
+- Added result structures for repeated feature configurations and removal rates.
+- Added repeated training across configurable random seeds.
+- Added evaluation across configurable removal rates.
+- Reused the cumulative feature configurations from Commit 28.
+- Reused `MetricSummary` for consistent aggregation.
+- Added mean and population-standard-deviation reporting.
+- Added parameter validation and reproducibility tests.
+- Added a command-line evaluation script.
+
+### Usage
+
+Run the experiment from the project root:
+
+```bash
+python scripts/evaluate_repeated_feature_ablation.py
+```
+
+### Evaluation Configuration
+
+```text
+Removal rates: 0.50, 0.60, 0.65
+Random seeds: 101, 123, 202
+Runs per removal rate: 3
+Generated solutions per run: 100
+Training/test split: 80% / 20%
+Random Forest estimators: 100
+Trained models: 27
+```
+
+### Ranking Results
+
+| Removal rate | Features | Top-1 mean | Top-1 SD | Top-2 mean | Top-3 mean | MRR mean |
+|---:|---:|---:|---:|---:|---:|---:|
+| 50% | 82 | 11.17% | 1.07% | 22.88% | 33.75% | 0.3175 |
+| 50% | 91 | 51.46% | 2.00% | 84.38% | 97.21% | 0.7287 |
+| 50% | 118 | 64.50% | 1.27% | 89.08% | 98.00% | 0.8025 |
+| 60% | 82 | 11.28% | 0.30% | 22.85% | 33.51% | 0.3157 |
+| 60% | 91 | 37.95% | 1.40% | 69.27% | 88.92% | 0.6278 |
+| 60% | 118 | 46.60% | 1.44% | 75.52% | 92.12% | 0.6848 |
+| 65% | 82 | 12.63% | 0.40% | 23.78% | 34.81% | 0.3275 |
+| 65% | 91 | 32.31% | 0.28% | 61.67% | 82.72% | 0.5798 |
+| 65% | 118 | 39.81% | 0.31% | 67.69% | 86.35% | 0.6310 |
+
+### Probability-Quality Results
+
+| Removal rate | Features | Confidence mean | ECE mean | ECE SD | Log loss mean |
+|---:|---:|---:|---:|---:|---:|
+| 50% | 82 | 18.16% | 0.0700 | 0.0104 | 2.2683 |
+| 50% | 91 | 42.47% | 0.1032 | 0.0123 | 1.0298 |
+| 50% | 118 | 35.41% | 0.2923 | 0.0110 | 1.1586 |
+| 60% | 82 | 18.23% | 0.0695 | 0.0021 | 2.2871 |
+| 60% | 91 | 32.87% | 0.0572 | 0.0070 | 1.3445 |
+| 60% | 118 | 28.53% | 0.1807 | 0.0190 | 1.4335 |
+| 65% | 82 | 18.22% | 0.0559 | 0.0034 | 2.2672 |
+| 65% | 91 | 29.29% | 0.0354 | 0.0054 | 1.4903 |
+| 65% | 118 | 25.96% | 0.1408 | 0.0050 | 1.5649 |
+
+### Interpretation
+
+The 82-feature model remains close to the 11.11% random Top-1 baseline at every removal rate. Raw grid values and target position do not provide the Random Forest with enough structure to learn Sudoku effectively.
+
+Candidate indicators provide the largest improvement in every experiment. Their Top-1 gain over the 82-feature model is 40.29 percentage points at 50% removal, 26.67 points at 60%, and 19.68 points at 65%.
+
+Candidate interactions add another 13.04, 8.65, and 7.50 percentage points respectively. Their incremental value remains consistently positive but decreases as the removal rate increases and the puzzle contains less local information.
+
+The full model's Top-1 accuracy decreases from 64.50% at 50% removal to 39.81% at 65%. Its Top-3 accuracy remains 86.35% at the hardest evaluated setting, so its ordered alternatives can still support backtracking.
+
+The 91-feature model has better ECE and log loss than the 118-feature model at every removal rate. Interaction features therefore improve ranking but not raw probability quality. The decreasing ECE at higher removal rates does not imply better predictions; lower accuracy and lower confidence merely become more similar.
+
+### Testing
+
+The tests cover:
+
+- aggregation across multiple random seeds,
+- all three cumulative feature configurations,
+- removal-rate grouping,
+- valid summarized ranking metrics,
+- empty removal-rate validation,
+- empty random-seed validation,
+- invalid removal rates,
+- deterministic reproducibility.
+
+Result:
+
+`184 passed`
+
+### Limitations
+
+- Three seeds provide evidence of stability but remain a small sample.
+- Removal rate is a difficulty proxy rather than a formal rating.
+- Training and evaluation use the same removal rate within each run.
+- Feature groups are cumulative and not tested in every combination.
+- No probability-calibration method is applied.
+- The experiment reports cell-level rather than complete-solver performance.
+
+### Next Step
+
+Compare probability-calibration methods for the full 118-feature model. The goal is to preserve its superior ranking while producing probabilities that better reflect observed accuracy.
+
+### Conclusion
+
+The feature-engineering findings are stable across independently generated datasets and removal rates. Candidate indicators provide most of the predictive improvement, interaction features consistently improve ranking, and raw grid features alone remain near random performance. The next model-focused challenge is improving probability calibration without losing ranking quality.
