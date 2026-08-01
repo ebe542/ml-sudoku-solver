@@ -235,6 +235,30 @@ Machine-learning output affects search order only. Candidate filtering and the f
 
 Keeping the solving engine identical isolates candidate ordering as the only experimental difference between both strategies.
 
+### Command-Line Interface
+
+The command-line interface connects text input, model persistence, and the hybrid solver:
+
+```text
+81-cell Sudoku string
+        |
+        v
+Input parsing and validation
+        |
+        v
+Load saved Random Forest
+        |
+        v
+HybridSudokuSolver
+        |
+        v
+Formatted solution and statistics
+```
+
+The parser accepts digits, dots, and whitespace. Both `0` and `.` represent empty cells. The normalized input must contain exactly 81 cells before it is reshaped into a `SudokuGrid`.
+
+The default model path is `models/sudoku_random_forest.joblib`. A different trusted model file can be selected with `--model`. Invalid input, missing model files, and unexpected serialized object types are reported as command-line usage errors.
+
 ## Current Results
 
 | Feature Representation | Test Accuracy |

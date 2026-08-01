@@ -1116,3 +1116,130 @@ Joblib files must only be loaded from trusted sources. Joblib relies on pickle-c
 ### Conclusion
 
 The trained Random Forest can now be reused across processes without repeating dataset generation and model training. This provides the foundation for a command-line interface that solves user-provided Sudoku grids with a saved model.
+
+---
+## Commit 20 - Command-Line Sudoku Solver
+
+**Commit:** `feat: add command-line Sudoku solver`
+
+### Objective
+
+Provide a user-facing command-line interface that loads a saved model and solves a structured Sudoku string without requiring changes to Python source code.
+
+### Input Format
+
+The CLI accepts exactly 81 Sudoku cells after whitespace normalization:
+
+```text
+Digits 1-9 -> given Sudoku values
+0          -> empty cell
+.          -> empty cell
+Whitespace -> ignored
+```
+
+Example input:
+
+```text
+530070000600195000098000060800060003400803001700020006060000280000419005000080079
+```
+
+### Pipeline
+
+```text
+Command-line arguments
+        |
+        v
+Parse 81-cell grid
+        |
+        v
+Load joblib model
+        |
+        v
+Run hybrid solver
+        |
+        v
+Print solution and statistics
+```
+
+### Implemented
+
+- Added parsing for compact and whitespace-separated Sudoku input.
+- Accepted both `0` and `.` as empty-cell markers.
+- Added validation for input length and allowed characters.
+- Added terminal-friendly 3x3 block formatting.
+- Added a default saved-model path.
+- Added an optional `--model` argument.
+- Connected model loading to `HybridSudokuSolver`.
+- Printed deterministic steps, ML decisions, and backtracks.
+- Reported invalid puzzles and missing models as command-line errors.
+- Added parser, formatter, successful-execution, and error-path tests.
+
+### Usage
+
+Train the default model if it does not exist yet:
+
+```bash
+python scripts/train_model.py
+```
+
+Solve a Sudoku:
+
+```bash
+python -m sudoku_ml.cli "530070000600195000098000060800060003400803001700020006060000280000419005000080079"
+```
+
+Specify a different model path:
+
+```bash
+python -m sudoku_ml.cli --model models/sudoku_random_forest.joblib "530070000600195000098000060800060003400803001700020006060000280000419005000080079"
+```
+
+### Example Result
+
+The example puzzle was solved as:
+
+```text
+5 3 4 | 6 7 8 | 9 1 2
+6 7 2 | 1 9 5 | 3 4 8
+1 9 8 | 3 4 2 | 5 6 7
+------+-------+------
+8 5 9 | 7 6 1 | 4 2 3
+4 2 6 | 8 5 3 | 7 9 1
+7 1 3 | 9 2 4 | 8 5 6
+------+-------+------
+9 6 1 | 5 3 7 | 2 8 4
+2 8 7 | 4 1 9 | 6 3 5
+3 4 5 | 2 8 6 | 1 7 9
+```
+
+Solver statistics:
+
+```text
+Deterministic steps: 51
+ML decisions:        0
+Backtracks:          0
+```
+
+This puzzle is solved entirely through single-candidate constraint propagation, so the saved model is loaded but does not need to rank an ambiguous cell.
+
+### Testing
+
+The CLI tests cover:
+
+- compact input with zeros,
+- dots as empty cells,
+- ignored whitespace,
+- invalid length,
+- invalid characters,
+- readable grid formatting,
+- successful solving with a saved model,
+- missing model files,
+- command-line exit codes and error output.
+
+Result:
+
+`96 passed`
+
+### Conclusion
+
+The project now provides a complete user-facing path from a saved machine-learning model and an 81-cell Sudoku string to a valid formatted solution. The CLI also exposes solver statistics, making it suitable for both demonstration and further experiments.

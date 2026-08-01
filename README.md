@@ -115,6 +115,22 @@ model = SudokuRandomForest.load(
 
 Only load joblib files from trusted sources. Deserializing an untrusted file can execute arbitrary code.
 
+### Solve a Sudoku from the Command Line
+
+Train the default model first, then pass an 81-cell Sudoku string to the CLI:
+
+```bash
+python -m sudoku_ml.cli "530070000600195000098000060800060003400803001700020006060000280000419005000080079"
+```
+
+Use `0` or `.` for empty cells. Whitespace and line breaks in the input are ignored. The CLI prints the original puzzle, the completed solution, and solver statistics.
+
+To load a model from a different location:
+
+```bash
+python -m sudoku_ml.cli --model models/sudoku_random_forest.joblib "530070000600195000098000060800060003400803001700020006060000280000419005000080079"
+```
+
 ## Hybrid Solver
 
 `HybridSudokuSolver` solves complete puzzles while preserving Sudoku validity. It selects constrained cells first, ranks ambiguous candidates with the trained Random Forest, and uses backtracking when a prediction leads to a dead end.
