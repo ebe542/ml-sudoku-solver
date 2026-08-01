@@ -448,3 +448,27 @@ The 50.25% accuracy measures cell-level digit prediction.
 It does not represent the ability to solve a complete Sudoku puzzle.
 The model still predicts individual target cells rather than producing a complete solved grid.
 
+---
+## Commit 11 — Error Analysis — Candidate Count
+
+**Commit:** `feat: error analysis`
+
+The prediction accuracy strongly depends on the number of valid candidate digits for the target cell.
+
+| Candidates | Accuracy | Samples |
+|---:|---:|---:|
+| 1 | 100.0% | 182 |
+| 2 | 44.9% | 274 |
+| 3 | 30.2% | 235 |
+| 4 | 26.1% | 92 |
+| 5 | 13.3% | 15 |
+| 6 | 0.0% | 2 |
+
+The model performs perfectly when only one candidate is possible. However, performance decreases significantly as the number of
+possible candidates increases.
+
+This indicates that the current model can exploit local Sudoku constraints but has difficulty resolving situations where multiple
+candidate digits remain possible.
+
+This is an important limitation of the current cell-level prediction approach because Sudoku decisions can depend on relationships between
+multiple cells.
