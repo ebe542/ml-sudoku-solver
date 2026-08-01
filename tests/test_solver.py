@@ -3,9 +3,12 @@ import pytest
 
 from sudoku_ml.data.split import create_train_test_split
 from sudoku_ml.grid import SudokuGrid
+from sudoku_ml.sudoku_generator import generate_solved_grid
 from sudoku_ml.model.random_forest import SudokuRandomForest
-from sudoku_ml.solver import HybridSudokuSolver
-
+from sudoku_ml.solver import (
+    ClassicalSudokuSolver,
+    HybridSudokuSolver,
+)
 
 @pytest.fixture(scope="module")
 def trained_solver() -> HybridSudokuSolver:
@@ -79,3 +82,22 @@ def test_solver_counts_deterministic_steps(trained_solver: HybridSudokuSolver) -
     assert trained_solver.stats.deterministic_steps == 1
     assert trained_solver.stats.ml_decisions == 0
     assert trained_solver.stats.backtracks == 0
+
+
+def test_classical_solver_completes_puzzle_without_model() -> None:
+    complete_grid = generate_solved_grid(random_seed=42)
+
+    puzzle_values = complete_grid.values.copy()
+    puzzle_values[0, 0] = 0
+
+    solver = ClassicalSudokuSolver()
+    solution = solver.solve(SudokuGrid(puzzle_values))
+
+    assert solution is not None
+    assert solution.is_complete()
+    assert solution.is_valid()
+    assert np.array_equal(solution.values, complete_grid.values)
+    assert solver.stats.deterministic_steps == 1
+    assert solver.stats.ml_decisions == 0
+    assert solver.stats.backtracks == 0
+

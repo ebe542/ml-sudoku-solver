@@ -185,6 +185,8 @@ Contains reusable evaluation logic, including:
 - solution and validity rates,
 - runtime measurement,
 - deterministic-step, ML-decision, and backtracking statistics.
+- direct comparison of ML-guided and classical candidate ordering on identical
+  puzzle sets.
 
 ### Analysis
 
@@ -204,6 +206,13 @@ The hybrid solver combines three mechanisms:
 3. Recursive backtracking reverses choices that lead to contradictions.
 
 Machine-learning output affects search order only. Candidate filtering and the final solution remain governed by deterministic Sudoku constraints.
+
+### Classical Solver
+
+`ClassicalSudokuSolver` reuses the same validation, minimum-remaining-values cell selection, and backtracking implementation as the hybrid solver. It
+replaces ML-based candidate ranking with ascending numerical order.
+
+Keeping the solving engine identical isolates candidate ordering as the only experimental difference between both strategies.
 
 ## Current Results
 
@@ -233,10 +242,22 @@ The first end-to-end evaluation used 20 independently generated puzzles with a r
 | ML decisions | 26 |
 | Backtracks | 0 |
 
-The 800 placements consisted of 96.75% deterministic steps and 3.25 % ML-ranked decisions. At this removal rate, constraint propagation therefore
-performs most of the solving work.
+The 800 placements consisted of 96.75% deterministic steps and 3.25 % ML-ranked decisions. At this removal rate, constraint propagation therefore performs most of the solving work.
+
+A direct comparison on 20 puzzles with a removal rate of 0.65 produced:
+
+| Metric | Hybrid | Classical |
+|---|---:|---:|
+| Solution rate | 100.00% | 100.00% |
+| Valid solution rate | 100.00% | 100.00% |
+| Average runtime | 144.88 ms | 4.39 ms |
+| Deterministic steps | 1,306 | 1,867 |
+| Backtracks | 494 | 1,145 |
+| Average backtracks | 24.70 | 57.25 |
+
+ML-guided ordering reduced backtracking by approximately 56.9%. However, feature calculation and Random Forest inference made the hybrid solver about 33
+times slower. The model improves search order but does not improve total runtime in the current implementation.
 
 ## Current Limitation
 
-The current end-to-end benchmark covers only 20 puzzles at one removal rate.
-It does not yet compare ML-guided candidate ordering with a non-ML baseline or measure behavior across multiple puzzle difficulty levels.
+The current comparison covers only 20 puzzles at one removal rate. Puzzle difficulty is approximated through the number of removed cells rather than a formal Sudoku difficulty rating. Multiple removal rates and larger evaluation sets are still required for a stronger conclusion.

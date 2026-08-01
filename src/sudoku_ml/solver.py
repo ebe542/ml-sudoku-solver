@@ -89,3 +89,17 @@ class HybridSudokuSolver:
             key=lambda digit: probability_by_digit.get(digit, 0.0),
             reverse=True,
         )
+
+
+class ClassicalSudokuSolver(HybridSudokuSolver):
+    """Solve Sudoku grids using deterministic candidate ordering."""
+
+    def __init__(self) -> None:
+        self.stats = SolverStats()
+
+    def _rank_candidates(self, grid: np.ndarray, row: int, column: int, candidates: set[int]) -> list[int]:
+        """Return valid candidates in ascending numerical order."""
+        if len(candidates) == 1:
+            self.stats.deterministic_steps += 1
+
+        return sorted(candidates)

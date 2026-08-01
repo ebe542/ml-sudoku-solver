@@ -827,3 +827,98 @@ Result:
 ### Next Step
 
 Evaluate multiple removal rates and compare the ML-guided solver with a classical non-ML candidate-ordering baseline.
+
+---
+## Commit 17 - ML-Guided and Classical Solver Comparison
+
+**Commit:** `feat: compare ML-guided and classical solver`
+
+### Objective
+
+Measure whether Random Forest candidate ranking improves the complete solving process compared with a classical non-ML ordering strategy.
+
+### Experimental Design
+
+Both solvers use the same:
+
+- Sudoku constraints,
+- minimum-remaining-values cell selection,
+- recursive backtracking implementation,
+- evaluation puzzles,
+- solution-validity checks.
+
+The only intentional difference is candidate ordering:
+
+```text
+Hybrid solver     -> descending Random Forest probability
+Classical solver  -> ascending numerical digit order
+```
+
+### Implemented
+
+- Added `ClassicalSudokuSolver` without a model dependency.
+- Reused the hybrid solver's validation and search implementation.
+- Added `SolverComparisonResult`.
+- Added a reusable function for evaluation on identical puzzle sets.
+- Added a command-line comparison experiment.
+- Added unit and integration tests for the classical solver and comparison.
+
+### Usage
+
+Run the comparison from the project root:
+
+```bash
+python scripts/compare_solvers.py
+```
+
+### Evaluation Configuration
+
+```text
+Training solutions: 100
+Training/test split: 80% / 20%
+Evaluation puzzles: 20
+Removal rate: 0.65
+Random Forest estimators: 100
+Training random seed: 42
+Evaluation random seed: 123
+```
+
+### Results
+
+| Metric | Hybrid | Classical |
+|---|---:|---:|
+| Solution rate | 100.00% | 100.00% |
+| Valid solution rate | 100.00% | 100.00% |
+| Average runtime | 144.88 ms | 4.39 ms |
+| Deterministic steps | 1,306 | 1,867 |
+| Backtracks | 494 | 1,145 |
+| Average backtracks | 24.70 | 57.25 |
+| ML decisions | 186 | 0 |
+
+### Interpretation
+
+The hybrid solver required **651 fewer backtracks**, a reduction of approximately **56.9%** compared with ascending numerical candidate ordering.
+This demonstrates that the model provides useful information for choosing promising search branches.
+
+Despite the smaller search tree, the hybrid solver averaged **144.88 ms** per puzzle, compared with **4.39 ms** for the classical solver. The hybrid solver was therefore approximately **33 times slower**.
+
+The runtime cost of repeatedly generating 118 features and executing Random Forest inference is greater than the cost of the additional classical backtracking for this experiment. The result therefore shows a trade-off:
+
+```text
+ML guidance -> better search order, fewer backtracks
+Classical   -> more backtracks, lower total runtime
+```
+
+Both strategies achieved a 100% valid solution rate because deterministic constraint filtering and backtracking guarantee that invalid local choices do not become final solutions.
+
+The deterministic-step totals include steps performed on search paths that were later reversed. They measure computational work rather than unique solved cells.
+
+### Testing
+
+Result:
+
+`77 passed`
+
+### Conclusion
+
+The Random Forest improves candidate ordering, but it does not currently improve end-to-end runtime. A broader evaluation across multiple removal rates is needed to determine how this trade-off changes with puzzle difficulty.
