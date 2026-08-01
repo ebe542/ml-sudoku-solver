@@ -372,3 +372,79 @@ This provides a useful baseline for future feature engineering and model improve
 This accuracy measures cell-level digit prediction.
 
 It does not represent the accuracy of a complete Sudoku solver.
+
+---
+## Commit 10 — Sudoku Constraint Features
+
+**Commit:** `feat: add sudoku constraint features`
+
+### Objective
+
+Improve the feature representation by explicitly providing Sudoku-specific constraint information to the machine learning model.
+
+The baseline model only received the Sudoku grid and the target cell position. The new features additionally describe which digits are
+valid candidates for the target cell.
+
+### Implemented
+
+- Added Sudoku candidate calculation based on:
+  - row constraints
+  - column constraints
+  - 3×3 block constraints
+- Added nine binary candidate features for each target cell.
+- Extended the feature vector from 82 to 91 features.
+- Added tests for Sudoku candidate calculation.
+- Added tests for the new candidate features.
+
+### Feature Representation
+
+Each sample now contains:
+
+```text
+81 grid values
++ 1 target cell position
++ 9 candidate indicators
+= 91 features
+```
+
+The nine candidate indicators represent digits 1–9:
+
+```text
+1 → candidate is possible
+0 → candidate is not possible
+```
+
+The candidate information is calculated exclusively from the incomplete Sudoku puzzle. The solution is only used to generate the target value.
+
+### Baseline Comparison
+
+The same Random Forest configuration was evaluated before and after adding the constraint features.
+
+| Configuration | Features | Test Accuracy |
+| ------------- | -------- | ------------- |  
+| Baseline | 82 | 11.75% |
+| Constraint features | 91 | 50.25% |
+
+
+### Result
+
+Adding the Sudoku constraint features increased test accuracy from 11.75% to 50.25%.
+
+This is a substantial improvement without changing the model, training data size, or Random Forest configuration.
+
+### Interpretation
+
+The result demonstrates the importance of domain-specific feature engineering.
+
+The baseline model had to learn Sudoku constraints implicitly from the grid representation. By explicitly representing possible candidate
+digits, important Sudoku structure becomes directly available to the model.
+
+The experiment therefore provides evidence that the feature representation has a major impact on model performance.
+
+### Current Limitation
+
+The 50.25% accuracy measures cell-level digit prediction.
+
+It does not represent the ability to solve a complete Sudoku puzzle.
+The model still predicts individual target cells rather than producing a complete solved grid.
+
