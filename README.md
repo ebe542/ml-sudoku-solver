@@ -60,5 +60,13 @@ python scripts/analyze_errors.py
 ### Feature Importance
 
 ```bash
-python -m sudoku_ml.analysis.analyze_feature_importance
+python -m sudoku_ml.analysis.feature_importance
 ```
+
+### Grouped Cross-Validation
+
+```bash
+python scripts/evaluate_group_cross_validation.py
+```
+
+Evaluates the model using solution-level groups to prevent related cell samples from appearing in both training and validation folds.

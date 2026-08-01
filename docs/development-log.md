@@ -543,7 +543,7 @@ The goal is not to improve prediction accuracy but to better understand how the 
 Run the analysis from the project root:
 
 ```bash
-python -m sudoku_ml.analysis.analyze_feature_importance
+python -m sudoku_ml.analysis.feature_importance
 ```
 
 The script trains the current Random Forest model using the default configuration and reports:
@@ -615,3 +615,100 @@ This observation should be investigated in future experiments.
 The analysis confirms that the improvements achieved in previous commits are supported by meaningful feature usage rather than random variation.
 
 Both candidate indicators and candidate interaction features provide substantial information to the Random Forest and are responsible for a large part of the overall prediction performance.
+
+---
+## Commit 14 — Grouped Cross-Validation Evaluation
+
+**Commit:** `feat: add grouped cross validation evaluation`
+
+### Objective
+
+Evaluate the stability and generalization performance of the Random Forest model across multiple train/test partitions.
+
+The previous evaluation used a single solution-level train/test split. Grouped cross-validation provides a more reliable estimate by evaluating the model across five independent folds.
+
+### Why GroupKFold?
+
+Each generated Sudoku puzzle produces multiple cell-level machine learning samples.
+
+A standard `KFold` split could place cells originating from the same Sudoku puzzle in both the training and validation sets. This would cause data leakage because the model would be evaluated on data closely related to its training samples.
+
+`GroupKFold` keeps all samples originating from the same Sudoku puzzle in the same fold.
+
+```text
+Sudoku solution
+      │
+      ├── Cell sample 1
+      ├── Cell sample 2
+      ├── ...
+      └── Cell sample 40
+             │
+             ▼
+     One shared group ID
+```
+
+### Implemented
+
+- Added group identifiers for cell-level samples.
+- Added grouped feature and target generation.
+- Added reusable grouped cross-validation logic.
+- Added five-fold `GroupKFold` evaluation.
+- Added summary statistics for:
+  - mean accuracy,
+  - standard deviation,
+  - minimum accuracy,
+  - maximum accuracy.
+- Extended the Random Forest wrapper with array-based training.
+- Added validation and reproducibility tests.
+
+### Usage
+
+Run the grouped cross-validation evaluation from the project root:
+
+```bash
+python scripts/evaluate_group_cross_validation.py
+```
+
+### Evaluation Configuration
+
+```text
+Sudoku solutions: 100
+Cross-validation folds: 5
+Removal rate: 0.5
+Random Forest estimators: 100
+Random seed: 42
+Feature count: 118
+```
+
+### Results
+
+| Fold | Accuracy |
+|---:|---:|
+| 1 | 67.00 % |
+| 2 | 63.38 % |
+| 3 | 67.37 % |
+| 4 | 64.38 % |
+| 5 | 67.00 % |
+
+### Summary
+
+| Metric | Accuracy |
+|---|---:|
+| Mean | 65.83 % |
+| Standard deviation | 1.63 percentage points |
+| Minimum | 63.38 % |
+| Maximum | 67.37 % |
+
+### Interpretation
+
+The mean grouped cross-validation accuracy of **65.83%** is close to the previous single-split result of **66.50%**.
+
+This indicates that the previous result was representative rather than the consequence of an unusually favorable train/test split.
+
+The relatively small standard deviation shows that the model performs consistently across different groups of previously unseen Sudoku
+solutions.
+
+### Conclusion
+
+Grouped cross-validation confirms that the current Random Forest and feature representation provide stable cell-level prediction performance
+while avoiding leakage between samples derived from the same Sudoku.

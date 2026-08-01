@@ -1,3 +1,5 @@
+import numpy as np
+
 from sklearn.ensemble import RandomForestClassifier
 
 from sudoku_ml.data.split import MLDataSplit
@@ -13,9 +15,13 @@ class SudokuRandomForest:
             n_jobs=-1,
         )
 
+    def fit_arrays(self, X: np.ndarray, y: np.ndarray) -> None:
+        """Train the model using feature and target arrays."""
+        self.model.fit(X, y)
+
     def fit(self, data: MLDataSplit) -> None:
-        """Train the model on the training data."""
-        self.model.fit(data.X_train, data.y_train)
+        """Train the model on the training portion of an ML data split."""
+        self.fit_arrays(data.X_train, data.y_train)
 
     def predict(self, X):
         """Predict Sudoku digits for the provided features."""

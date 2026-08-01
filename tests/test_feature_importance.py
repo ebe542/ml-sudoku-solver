@@ -1,6 +1,6 @@
 import pytest
 
-from sudoku_ml.analysis.analyze_feature_importance import (
+from sudoku_ml.analysis.feature_importance import (
     FEATURE_GROUPS,
     get_feature_name
 )
