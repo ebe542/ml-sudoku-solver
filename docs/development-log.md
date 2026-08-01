@@ -2061,3 +2061,152 @@ Analyze the full probability ranking with top-k accuracy, mean reciprocal rank, 
 ### Conclusion
 
 Backtracking is currently essential for reliable complete solving. The Greedy experiment isolates the limitation of the current Random Forest and establishes a stronger baseline for the next model-analysis phase.
+
+---
+## Commit 27 - Model Probability-Ranking Analysis
+
+**Commit:** `feat: add model probability ranking analysis`
+
+### Objective
+
+Analyze the Random Forest's complete probability distribution instead of evaluating only its Top-1 prediction.
+
+### Motivation
+
+The Greedy solver showed that one incorrect model decision can invalidate a complete solve, while Hybrid backtracking can recover by trying alternatives. Top-1 accuracy alone does not show whether the correct digit was a close second choice or ranked near the bottom.
+
+Probability-ranking metrics make this distinction visible:
+
+```text
+Predicted digit probabilities
+            |
+            v
+Sort digits by probability
+            |
+            v
+Find rank of correct digit
+            |
+      +-----+-----+
+      |     |     |
+      v     v     v
+    Top-k  MRR  Calibration
+```
+
+### Implemented
+
+- Added `ProbabilityRankingResult` for reusable ranking and calibration metrics.
+- Added Top-1, Top-2, and Top-3 accuracy.
+- Added mean reciprocal rank.
+- Added mean prediction confidence.
+- Added expected calibration error with configurable confidence bins.
+- Added multiclass log loss.
+- Added candidate masking and probability renormalization.
+- Added raw and candidate-constrained analysis modes.
+- Added a command-line evaluation script.
+- Added unit tests for metrics, validation, masking, and renormalization.
+
+### Candidate-Constrained Probabilities
+
+The Random Forest produces probabilities for all learned digit classes. The constrained mode uses candidate indicators from the input features to assign zero probability to digits that violate the current Sudoku row, column, or block constraints. The remaining probabilities are divided by their sum.
+
+```text
+Raw probabilities
+        |
+        v
+Mask illegal digits
+        |
+        v
+Renormalize valid digits
+        |
+        v
+Constrained probabilities
+```
+
+The candidate mask is derived only from the incomplete puzzle. It does not use the target digit from the completed solution.
+
+### Metrics
+
+- Top-k accuracy reports whether the correct digit appears among the first `k` ranked classes.
+- Mean reciprocal rank rewards predictions that place the correct digit near the beginning of the ranking.
+- Mean confidence is the average probability assigned to the predicted Top-1 digit.
+- Expected calibration error compares confidence with observed Top-1 accuracy across confidence bins.
+- Log loss evaluates the probability assigned to the correct class and penalizes confident mistakes.
+
+Higher values are better for Top-k accuracy and mean reciprocal rank. Lower values are better for expected calibration error and log loss.
+
+### Usage
+
+Run the analysis from the project root:
+
+```bash
+python scripts/evaluate_probability_ranking.py
+```
+
+### Evaluation Configuration
+
+```text
+Generated Sudoku solutions: 100
+Training/test split: 80% / 20%
+Removal rate: 0.50
+Random Forest estimators: 100
+Random seed: 42
+Evaluation samples: 800
+Calibration bins: 10
+```
+
+### Results
+
+| Metric | Raw | Candidate-constrained |
+|---|---:|---:|
+| Top-1 accuracy | 66.88% | 66.88% |
+| Top-2 accuracy | 90.00% | 90.00% |
+| Top-3 accuracy | 97.50% | 97.50% |
+| Mean reciprocal rank | 0.8152 | 0.8153 |
+| Mean confidence | 36.28% | 59.20% |
+| Expected calibration error | 0.3093 | 0.0801 |
+| Log loss | 1.1396 | 0.6960 |
+
+### Interpretation
+
+The correct digit is ranked first for 66.88% of hold-out samples, among the first two for 90.00%, and among the first three for 97.50%. The model therefore provides considerably more useful information in its complete ranking than Top-1 accuracy alone reveals.
+
+Candidate constraints leave Top-1 through Top-3 accuracy unchanged and improve mean reciprocal rank only minimally. This indicates that illegal digits rarely occupy the leading ranking positions in this test set.
+
+The larger effect is probabilistic. Removing illegal digits raises mean confidence from 36.28% to 59.20%, reduces expected calibration error from 0.3093 to 0.0801, and reduces log loss from 1.1396 to 0.6960. The constrained probabilities represent the valid Sudoku decision space much better than the raw classifier output.
+
+These results explain why Hybrid ML can benefit from the model even though Greedy ML remains unreliable. When the first choice is wrong, the correct digit is usually the second or third candidate and can be reached through backtracking.
+
+### Testing
+
+The tests cover:
+
+- perfect and imperfect probability rankings,
+- Top-k accuracy and mean reciprocal rank,
+- expected calibration error,
+- multiclass log loss,
+- empty and mismatched input validation,
+- targets absent from model classes,
+- invalid calibration-bin counts,
+- candidate-feature validation,
+- candidate masking and renormalization,
+- correction of an invalid raw Top-1 prediction.
+
+Result:
+
+`167 passed`
+
+### Limitations
+
+- The experiment uses one training/test split and one random seed.
+- Only a removal rate of 0.50 is evaluated.
+- Calibration results depend on the selected number of confidence bins.
+- Candidate constraints encode domain knowledge and are not learned solely by the Random Forest.
+- Cell-level ranking quality does not directly equal complete-puzzle solution quality.
+
+### Next Step
+
+Perform a feature-ablation experiment that trains and evaluates the model without explicit candidate features. This will quantify how much of the ranking performance comes from learned grid patterns and how much comes from encoded Sudoku constraints.
+
+### Conclusion
+
+The model's probability ranking is substantially more informative than its Top-1 accuracy. Sudoku candidate constraints mainly improve probability quality rather than leading rank accuracy, while the strong Top-2 and Top-3 results provide a clear explanation for the effectiveness of ML-guided backtracking.

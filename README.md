@@ -208,6 +208,16 @@ python scripts/evaluate_greedy_solver.py
 
 Compares a constraint-aware Greedy ML solver with the Hybrid ML solver on identical unique-solution puzzles. Greedy ML permanently accepts the model's highest-ranked valid candidate and cannot recover from a wrong decision. At removal rates of 0.60 and 0.65, its exact solution rates were 55% and 25%, compared with 100% for the backtracking-enabled hybrid solver.
 
+### Analyze Model Probability Rankings
+
+```bash
+python scripts/evaluate_probability_ranking.py
+```
+
+Evaluates the Random Forest's complete probability ranking on the hold-out test set. The report compares raw model probabilities with candidate-constrained probabilities using Top-1, Top-2, and Top-3 accuracy, mean reciprocal rank, mean confidence, expected calibration error, and log loss.
+
+In the current 800-sample evaluation, the correct digit appears in the first two positions in 90.00% of predictions and in the first three positions in 97.50%. Applying Sudoku candidate constraints leaves Top-k accuracy almost unchanged but reduces expected calibration error from 0.3093 to 0.0801 and log loss from 1.1396 to 0.6960.
+
 ## Hybrid Solver
 
 `HybridSudokuSolver` solves complete puzzles while preserving Sudoku validity. It selects constrained cells first, ranks ambiguous candidates with the trained Random Forest, and uses backtracking when a prediction leads to a dead end.

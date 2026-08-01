@@ -244,7 +244,11 @@ Contains tools for understanding model behavior, including:
 - error analysis,
 - accuracy by candidate count,
 - confusion matrix evaluation,
-- feature-importance analysis.
+- feature-importance analysis,
+- Top-k probability-ranking analysis,
+- mean reciprocal rank,
+- confidence calibration and log loss,
+- comparison of raw and candidate-constrained probabilities.
 
 ### Hybrid Solver
 
@@ -506,6 +510,47 @@ The Greedy comparison uses the same trained model, unique puzzles, expected solu
 
 The 50% result does not measure model ability because no ambiguous decisions were required. At higher removal rates, one unrecoverable model mistake can invalidate the entire Greedy solve. Hybrid backtracking converts those failed decision chains into a 100% exact match rate.
 
+### Probability-Ranking Analysis
+
+The probability-ranking analysis evaluates more than the model's single most likely digit. For every hold-out sample, it determines the rank of the correct target digit and calculates Top-1, Top-2, and Top-3 accuracy together with mean reciprocal rank.
+
+```text
+Random Forest probabilities
+            |
+      +-----+-----+
+      |           |
+      v           v
+Raw ranking   Candidate mask
+                  |
+                  v
+             Renormalization
+                  |
+                  v
+          Constrained ranking
+```
+
+Candidate-constrained analysis masks digits that are not valid Sudoku candidates for the target cell and renormalizes the remaining probabilities to sum to one. The mask is derived from the nine candidate-indicator features at indices 82 through 90. It uses only the incomplete puzzle and does not expose the target solution.
+
+`ProbabilityRankingResult` stores the sample count, three Top-k accuracies, mean reciprocal rank, mean confidence, expected calibration error, and multiclass log loss. Expected calibration error groups predictions into confidence bins and measures the weighted difference between confidence and empirical accuracy.
+
+The experiment trained a 100-estimator Random Forest on 100 generated solutions with a solution-level 80/20 split, a removal rate of 0.50, and random seed 42. The hold-out set contained 800 cell-level samples:
+
+| Metric | Raw | Candidate-constrained |
+|---|---:|---:|
+| Top-1 accuracy | 66.88% | 66.88% |
+| Top-2 accuracy | 90.00% | 90.00% |
+| Top-3 accuracy | 97.50% | 97.50% |
+| Mean reciprocal rank | 0.8152 | 0.8153 |
+| Mean confidence | 36.28% | 59.20% |
+| Expected calibration error | 0.3093 | 0.0801 |
+| Log loss | 1.1396 | 0.6960 |
+
+Candidate constraints do not change which digit is ranked first in this evaluation and have almost no effect on the ranking metrics. They substantially improve the probability distribution, however, because probability mass assigned to illegal digits is removed and redistributed across valid candidates.
+
+The 90.00% Top-2 and 97.50% Top-3 accuracies explain why ML-guided backtracking is useful even though Top-1 accuracy is only 66.88%. When the first choice fails, the correct digit is usually near the top of the remaining search order.
+
 ## Current Limitation
 
-The current Random Forest cannot reliably solve ambiguous puzzles without correction: Greedy exact match falls to 55% at 60% removal and 25% at 65% removal. The evaluation covers 20 puzzles per rate and one pair of seeds, so repeated Greedy experiments are still needed. The model remains a cell-level classifier rather than an end-to-end grid model, and its probability ranking has not yet been analyzed with top-k or calibration metrics.
+The current Random Forest cannot reliably solve ambiguous puzzles without correction: Greedy exact match falls to 55% at 60% removal and 25% at 65% removal. Its 66.88% Top-1 accuracy is useful for search ordering but is insufficient for an unrecoverable decision sequence. The model remains a cell-level classifier rather than an end-to-end grid model.
+
+The probability experiment uses one hold-out split at a removal rate of 0.50. Ranking and calibration should therefore be repeated across random seeds and harder puzzle configurations. An ablation experiment without candidate indicators and candidate-interaction features is also needed to separate learned grid patterns from the benefit of explicitly encoded Sudoku rules.
