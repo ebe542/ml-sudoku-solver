@@ -115,6 +115,7 @@ def test_main_solves_puzzle_with_saved_model(
     assert "5 3 4 | 6 7 8 | 9 1 2" in output
     assert "Deterministic steps: 51" in output
     assert "ML decisions:        0" in output
+    assert "Branching decisions: 0" in output
     assert "Backtracks:          0" in output
 
 def test_main_rejects_invalid_puzzle(capsys: pytest.CaptureFixture[str]) -> None:

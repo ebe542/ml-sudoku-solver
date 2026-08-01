@@ -13,6 +13,7 @@ class SolverStats:
 
     deterministic_steps: int = 0
     ml_decisions: int = 0
+    branching_decisions: int = 0
     backtracks: int = 0
 
 
@@ -79,6 +80,7 @@ class HybridSudokuSolver:
             return list(candidates)
 
         self.stats.ml_decisions += 1
+        self.stats.branching_decisions += 1
 
         features = create_feature_vector(grid, row, column)[np.newaxis, :]
         probabilities = self.model.predict_probabilities(features)[0]
@@ -101,5 +103,7 @@ class ClassicalSudokuSolver(HybridSudokuSolver):
         """Return valid candidates in ascending numerical order."""
         if len(candidates) == 1:
             self.stats.deterministic_steps += 1
+        else:
+            self.stats.branching_decisions += 1
 
         return sorted(candidates)

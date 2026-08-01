@@ -1217,6 +1217,7 @@ Solver statistics:
 ```text
 Deterministic steps: 51
 ML decisions:        0
+Branching decisions: 0
 Backtracks:          0
 ```
 
@@ -1626,3 +1627,143 @@ Result:
 ### Conclusion
 
 Repeated evaluation reveals that single-seed backtracking results can be unstable, especially at a removal rate of 0.60. The average 0.65 result still supports a useful ML search-ordering effect, while runtime measurements consistently favor the classical solver.
+
+---
+## Commit 24 - Heuristic Puzzle Difficulty Analysis
+
+**Commit:** `feat: add heuristic puzzle difficulty analysis`
+
+### Objective
+
+Describe Sudoku difficulty with reproducible structural and search-effort metrics instead of treating removal rate as the difficulty value itself.
+
+### Motivation
+
+Removal rate determines the number of empty cells, but puzzles with the same number of clues can require very different amounts of constraint propagation and backtracking. A useful project-level analysis should therefore observe the actual solving process.
+
+The analyzer deliberately uses the classical solver. ML guidance would change the explored search path and make the difficulty measurement dependent on the trained model.
+
+### Structural Metrics
+
+The analysis records the puzzle state before solving:
+
+- number of given cells,
+- number of empty cells,
+- number of cells with one initial candidate,
+- average initial candidate count across empty cells.
+
+### Search Metrics
+
+`SolverStats` now distinguishes generic branching decisions from ML decisions:
+
+```text
+deterministic step -> exactly one candidate
+branching decision -> multiple valid candidates
+ML decision        -> model ranks a branching decision
+backtrack          -> attempted value is reversed
+```
+
+The hybrid solver increments both `branching_decisions` and `ml_decisions` when it ranks an ambiguous cell. The classical solver increments only `branching_decisions`.
+
+### Heuristic Score
+
+The project-specific score is:
+
+```text
+difficulty score = branching decisions + backtracks
+```
+
+Levels are assigned using transparent thresholds:
+
+| Level | Score |
+|---|---:|
+| Easy | 0 |
+| Medium | 1-10 |
+| Hard | 11-100 |
+| Expert | above 100 |
+
+These levels are not official Sudoku ratings. They approximate computational search effort and do not model the named logical techniques used by human solvers.
+
+### Implemented
+
+- Added generic branching-decision statistics to both solvers.
+- Added branching output to the command-line solver.
+- Added `DifficultyLevel`.
+- Added per-puzzle structural and search analysis.
+- Added project-specific score classification.
+- Required valid uniquely solvable puzzles for analysis.
+- Preserved input puzzles during analysis.
+- Added dataset-level averages and level distributions.
+- Added a command-line analysis experiment.
+- Added classification, validation, immutability, and aggregation tests.
+
+### Usage
+
+Run the analysis from the project root:
+
+```bash
+python scripts/analyze_puzzle_difficulty.py
+```
+
+### Evaluation Configuration
+
+```text
+Removal rates: 0.50, 0.60, 0.65
+Unique puzzles per rate: 10
+Puzzle random seed: 123
+Solver: classical MRV backtracking
+```
+
+### Average Difficulty Metrics
+
+| Removal rate | Clues | Initial singles | Avg candidates | Branches | Backtracks | Score |
+|---:|---:|---:|---:|---:|---:|---:|
+| 50% | 41.00 | 8.20 | 2.40 | 0.00 | 0.00 | 0.00 |
+| 60% | 33.00 | 3.90 | 2.99 | 0.70 | 6.60 | 7.30 |
+| 65% | 29.00 | 2.50 | 3.37 | 5.80 | 52.70 | 58.50 |
+
+### Heuristic Level Distribution
+
+| Removal rate | Easy | Medium | Hard | Expert |
+|---:|---:|---:|---:|---:|
+| 50% | 10 | 0 | 0 | 0 |
+| 60% | 6 | 1 | 3 | 0 |
+| 65% | 2 | 3 | 2 | 3 |
+
+### Interpretation
+
+All 50% puzzles were solved without branching or backtracking and were classified as easy. At 60%, the same removal count produced a mixture of easy, medium, and hard puzzles. At 65%, all four heuristic levels appeared, including three expert puzzles.
+
+The average initial candidate count rose from 2.40 to 3.37 as clues were removed, while the number of initial single candidates decreased from 8.20 to 2.50. This connects structural ambiguity with increasing classical search effort.
+
+The mixed level distributions demonstrate why removal rate should not be presented as a formal difficulty rating. It influences difficulty but does not determine it.
+
+### Testing
+
+The new tests cover:
+
+- all heuristic threshold boundaries,
+- rejection of negative metrics,
+- exact metrics for a one-cell puzzle,
+- puzzle immutability,
+- rejection of non-unique puzzles,
+- dataset summary averages,
+- level counts,
+- rejection of empty puzzle collections,
+- CLI branching-statistics output.
+
+Result:
+
+`142 passed`
+
+### Limitations
+
+- Thresholds are project-defined and empirical.
+- Difficulty is measured through one classical search strategy.
+- Named human-solving techniques are not detected.
+- Search order affects branching and backtrack counts.
+- Dataset results use only 10 puzzles per removal rate.
+
+### Conclusion
+
+The project now separates clue removal from measured search difficulty. Structural candidate metrics and classical solver effort provide a more informative, reproducible profile while remaining explicit about the limits of the heuristic rating.

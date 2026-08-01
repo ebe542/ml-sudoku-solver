@@ -127,6 +127,10 @@ def main(arguments: list[str] | None = None) -> int:
         f"{solver.stats.ml_decisions}"
     )
     print(
+        "Branching decisions: "
+        f"{solver.stats.branching_decisions}"
+    )
+    print(
         "Backtracks:          "
         f"{solver.stats.backtracks}"
     )

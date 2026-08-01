@@ -161,6 +161,14 @@ python scripts/evaluate_repeated_solvers.py
 
 Repeats the unique-solution comparison across several independently generated puzzle sets and reports mean, population standard deviation, minimum, and maximum through reusable metric summaries. This distinguishes stable behavior from results that depend strongly on one evaluation seed.
 
+### Analyze Heuristic Puzzle Difficulty
+
+```bash
+python scripts/analyze_puzzle_difficulty.py
+```
+
+Analyzes uniquely solvable puzzles using clue count, initial candidate structure, deterministic steps, branching decisions, and classical backtracking effort. The resulting easy, medium, hard, and expert levels are project-specific heuristics and are not official Sudoku difficulty ratings.
+
 ## Hybrid Solver
 
 `HybridSudokuSolver` solves complete puzzles while preserving Sudoku validity. It selects constrained cells first, ranks ambiguous candidates with the trained Random Forest, and uses backtracking when a prediction leads to a dead end.

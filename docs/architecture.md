@@ -391,6 +391,61 @@ Three runs with evaluation seeds 101, 123, and 202 produced the following mean a
 
 The large relative spread at 60% shows that a single evaluation seed can give a misleading impression of candidate-ordering quality. The 65% result remains positive across the aggregate but still exhibits substantial puzzle-sample variation.
 
+### Heuristic Difficulty Analysis
+
+Removal rate controls how many clues are hidden but does not directly measure logical or search difficulty. The heuristic difficulty analyzer therefore combines structural input features with model-free classical solver effort:
+
+```text
+Unique Sudoku puzzle
+        |
+        +--> given and empty cells
+        +--> initial single candidates
+        +--> average initial candidate count
+        |
+        v
+Classical MRV backtracking solver
+        |
+        +--> deterministic steps
+        +--> branching decisions
+        +--> backtracks
+        |
+        v
+Heuristic score and level
+```
+
+The difficulty score is defined as:
+
+```text
+difficulty score = branching decisions + backtracks
+```
+
+The project-specific levels are:
+
+| Level | Search-effort rule |
+|---|---:|
+| Easy | score = 0 |
+| Medium | score 1-10 |
+| Hard | score 11-100 |
+| Expert | score above 100 |
+
+These thresholds are transparent and reproducible but empirical. They do not correspond to standardized human-solving difficulty because the analyzer does not identify named logical techniques such as hidden singles, pairs, or X-Wing.
+
+An analysis of ten unique puzzles per removal rate produced:
+
+| Removal rate | Clues | Initial singles | Avg candidates | Branches | Backtracks | Score |
+|---:|---:|---:|---:|---:|---:|---:|
+| 50% | 41.00 | 8.20 | 2.40 | 0.00 | 0.00 | 0.00 |
+| 60% | 33.00 | 3.90 | 2.99 | 0.70 | 6.60 | 7.30 |
+| 65% | 29.00 | 2.50 | 3.37 | 5.80 | 52.70 | 58.50 |
+
+| Removal rate | Easy | Medium | Hard | Expert |
+|---:|---:|---:|---:|---:|
+| 50% | 10 | 0 | 0 | 0 |
+| 60% | 6 | 1 | 3 | 0 |
+| 65% | 2 | 3 | 2 | 3 |
+
+The distribution demonstrates that removal rate and search difficulty are related but not equivalent. Puzzles with the same number of clues can fall into different heuristic levels.
+
 ## Current Limitation
 
-The repeated unique-solution evaluation covers three seeds with 10 puzzles per rate. This is stronger than a single-run result but remains a small experiment. The reported standard deviation is descriptive population variability across these three selected runs, not a confidence interval. Puzzle difficulty is still approximated through the number of removed cells rather than a formal rating, and training-seed variability has not yet been measured.
+The repeated unique-solution evaluation covers three seeds with 10 puzzles per rate. This is stronger than a single-run result but remains a small experiment. The reported standard deviation is descriptive population variability across these three selected runs, not a confidence interval. The new difficulty levels quantify classical search effort but remain project-specific heuristics rather than standardized human-solving ratings, and training-seed variability has not yet been measured.
