@@ -1019,4 +1019,30 @@ Repeated evaluation shows that Sigmoid reliably improves raw probability quality
 
 The first end-to-end comparison shows that Logistic Regression is the fastest model-guided solver, but it uses one training seed, one evaluation seed, and 20 puzzles per removal rate. The model-dependent search-effort ordering changes with removal rate, so repeated end-to-end evaluation is still required.
 
-Alternative models also lack the established persistence and CLI integration of `SudokuRandomForest`. The production solver therefore continues to use Random Forest until solver results are repeated and model lifecycle support is generalized.
+`SudokuHistogramGradientBoosting` now provides the same training, prediction, probability, evaluation, and persistence operations as `SudokuRandomForest`. CLI model selection is not yet available, so the command-line solver continues to load Random Forest by default.
+
+## Persistent Histogram Gradient Boosting Model
+
+The classifier comparisons identified Histogram Gradient Boosting as the strongest general cell-level classifier. It is now represented by a dedicated project wrapper instead of being available only through the temporary comparison adapter.
+
+```text
+MLDataSplit
+    |
+    v
+SudokuHistogramGradientBoosting
+    |
+    +-- fit(data)
+    +-- fit_arrays(X, y)
+    +-- predict(X)
+    +-- predict_probabilities(X)
+    +-- evaluate(data)
+    +-- classes
+    +-- save(path)
+    +-- load(path)
+```
+
+The wrapper owns a scikit-learn `HistGradientBoostingClassifier`. Model files contain the fitted estimator and are serialized with Joblib. Loading validates the estimator type before exposing it through the project API.
+
+The training script uses 100 generated solutions, a solution-level 80/20 split, 50% removal, seed 42, the complete 118-feature representation, and 100 boosting iterations. The resulting artifact is written to `models/sudoku_histogram_gradient_boosting.joblib` and remains excluded from Git.
+
+The Random Forest remains the CLI default. Keeping model persistence separate from CLI selection allows the new lifecycle behavior to be tested independently before command-line configuration is generalized.

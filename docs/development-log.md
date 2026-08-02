@@ -3266,3 +3266,111 @@ Repeat the end-to-end solver comparison across several training and evaluation s
 ### Conclusion
 
 Cell-level superiority does not directly determine solver superiority. Histogram Gradient Boosting remains the strongest general cell classifier, but Logistic Regression produces the fastest complete Hybrid solver by a large margin. Backtracking equalizes solution quality, while inference cost and the ranking of solver-specific ambiguous states determine practical performance.
+
+---
+## Commit 35 - Persistent Histogram Gradient Boosting Model
+
+**Commit:** `feat: add persistent histogram gradient boosting model`
+
+### Objective
+
+Promote Histogram Gradient Boosting from an experiment-only classifier to a reusable project model that can be trained, evaluated, saved, and restored independently.
+
+### Motivation
+
+The classifier comparisons consistently showed the best cell-level Top-1 accuracy, MRR, and log loss for Histogram Gradient Boosting. Commit 34 also confirmed that the model is compatible with the general solver probability interface. Until this commit, however, it existed only as a scikit-learn estimator wrapped by the comparison adapter and could not be managed like the established Random Forest model.
+
+### Model Interface
+
+`SudokuHistogramGradientBoosting` wraps `HistGradientBoostingClassifier` and provides:
+
+- training from `MLDataSplit`,
+- direct array-based training,
+- digit prediction,
+- class-probability prediction,
+- learned class access,
+- hold-out accuracy evaluation,
+- Joblib persistence,
+- estimator-type validation during loading.
+
+The interface mirrors `SudokuRandomForest`, which keeps model use predictable while preserving separate classifier implementations.
+
+### Implemented
+
+- Added the persistent Histogram Gradient Boosting model wrapper.
+- Added a dedicated training script.
+- Added creation of missing model directories during saving.
+- Added safe model-type validation during loading.
+- Added tests for training, predictions, probabilities, evaluation, persistence, and invalid files.
+- Kept the existing Random Forest model and CLI behavior unchanged.
+
+### Usage
+
+Train and store the model from the project root:
+
+```bash
+python scripts/train_histogram_gradient_boosting.py
+```
+
+The generated artifact is stored at:
+
+```text
+models/sudoku_histogram_gradient_boosting.joblib
+```
+
+Load it in Python without retraining:
+
+```python
+from sudoku_ml.model.histogram_gradient_boosting import (
+    SudokuHistogramGradientBoosting,
+)
+
+model = SudokuHistogramGradientBoosting.load(
+    "models/sudoku_histogram_gradient_boosting.joblib"
+)
+```
+
+Generated model artifacts remain excluded from Git. Joblib files must only be loaded from trusted sources.
+
+### Training Configuration
+
+```text
+Generated solutions: 100
+Test size: 20%
+Removal rate: 50%
+Random seed: 42
+Feature count: 118
+Boosting iterations: 100
+```
+
+### Testing
+
+The new tests verify:
+
+- the underlying estimator type,
+- all nine learned digit classes,
+- prediction and probability shapes,
+- normalized probability rows,
+- bounded evaluation accuracy,
+- identical predictions before and after persistence,
+- rejection of an unrelated serialized object.
+
+Result:
+
+`228 passed`
+
+### Limitations
+
+- The training script currently uses one fixed configuration.
+- Hyperparameters are not tuned.
+- The saved Histogram Gradient Boosting model cannot yet be selected through the CLI.
+- Joblib persistence depends on compatible Python and scikit-learn environments.
+- A stronger cell classifier is not automatically the fastest complete solver.
+
+### Next Step
+
+Generalize CLI model loading so the user can explicitly select Random Forest or Histogram Gradient Boosting without changing solver code.
+
+### Conclusion
+
+Histogram Gradient Boosting now has a complete model lifecycle within the project. It can be trained once, persisted, restored, and consumed through the probability interface required by the Hybrid solver. Random Forest remains the command-line default until model selection is introduced separately.
