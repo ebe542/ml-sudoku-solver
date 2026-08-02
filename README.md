@@ -261,6 +261,16 @@ for decision in solver.decision_trace:
 
 This is the project's current Model-only experiment: Sudoku constraints still reject illegal digits, but no search or backtracking repairs a model mistake.
 
+### Analyze Model-only Decision Errors
+
+```bash
+python scripts/analyze_model_only_errors.py
+```
+
+Compares Random Forest and Histogram Gradient Boosting on identical unique-solution puzzles. Each Greedy decision trace is checked against ground truth to locate the first incorrect placement, count correct preceding decisions, measure confidence in the wrong digit, and determine the correct digit's rank.
+
+Histogram Gradient Boosting improves exact match from 55% to 65% at 60% removal and from 25% to 30% at 65% removal. At every observed first error, the correct digit was ranked second on average. The Gradient Boosting errors were much more confident, however: 72.05% at 60% removal and 68.52% at 65%, compared with 31.22% and 29.60% for Random Forest.
+
 ### Analyze Model Probability Rankings
 
 ```bash

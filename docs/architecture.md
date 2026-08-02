@@ -1101,3 +1101,44 @@ Every placement is stored as an immutable `GreedyDecision` containing:
 For single-candidate placements, `confidence` is `None` because the digit is selected by Sudoku constraints rather than model inference. For ambiguous placements, confidence is the model's raw probability for the selected valid digit.
 
 The trace is reset before every solving attempt and exposed as an immutable tuple. It contains no rollback events because the Greedy solver performs no backtracking. Comparing the trace with a unique ground-truth solution can therefore locate the first incorrect irreversible choice and determine the rank of the correct digit.
+
+## Model-only Ground-Truth Analysis
+
+`analyze_model_only_attempt()` validates a puzzle and expected solution, runs a fresh Greedy solver, and compares every traced placement with the digit at the same ground-truth position. Comparison stops at the first mismatch because every later state already depends on that irreversible error.
+
+```text
+Puzzle + expected solution + probability model
+                      |
+                      v
+               Greedy solve attempt
+                      |
+                      v
+                 decision_trace
+                      |
+                      v
+          compare each selected digit
+                      |
+          +-----------+-----------+
+          |                       |
+       correct                 first error
+          |                       |
+     next decision       digit, rank, confidence,
+                         candidates, position
+```
+
+`ModelOnlyPuzzleResult` distinguishes exact match, valid completion, and completion. It also reports trace length, ML-decision count, correct placements before the first error, and the optional `ModelOnlyDecisionError`.
+
+`compare_model_only_models()` applies the same analysis to named probability models on identical puzzle and ground-truth arrays. Aggregate properties report exact solution rate, failure rate, average correct decisions before error, average first-error confidence, and average correct-digit rank.
+
+The first experiment produced:
+
+| Removal | Model | Exact | Failure | Correct before error | Error confidence | Correct rank |
+|---:|---|---:|---:|---:|---:|---:|
+| 50% | Random Forest | 100.00% | 0.00% | n/a | n/a | n/a |
+| 50% | Histogram Gradient Boosting | 100.00% | 0.00% | n/a | n/a | n/a |
+| 60% | Random Forest | 55.00% | 45.00% | 13.67 | 31.22% | 2.00 |
+| 60% | Histogram Gradient Boosting | 65.00% | 35.00% | 14.57 | 72.05% | 2.00 |
+| 65% | Random Forest | 25.00% | 75.00% | 13.60 | 29.60% | 2.00 |
+| 65% | Histogram Gradient Boosting | 30.00% | 70.00% | 9.86 | 68.52% | 2.00 |
+
+Histogram Gradient Boosting improves complete Model-only success, but its wrong first choices receive more than twice the confidence of Random Forest errors. Both models rank the correct digit second on average at the first error. This provides direct motivation for retaining more than one candidate path through Beam Search.

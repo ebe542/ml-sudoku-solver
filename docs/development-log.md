@@ -3576,3 +3576,131 @@ Compare each Greedy trace with the unique ground truth. Report the first incorre
 ### Conclusion
 
 The Model-only experiment is now observable at decision level. Complete failure is no longer a black-box outcome: every permanent choice can be reconstructed and evaluated against the known unique solution without changing the reliable Hybrid solver.
+
+---
+## Commit 38 - Model-only Ground-Truth Error Analysis
+
+**Commit:** `feat: analyze model-only decision errors`
+
+### Objective
+
+Compare Greedy Model-only decision traces with unique ground-truth solutions and measure the first irreversible error for Random Forest and Histogram Gradient Boosting.
+
+### Motivation
+
+Commit 37 made every Greedy placement observable, but the trace alone does not identify whether a decision is correct. Ground-truth comparison turns the trace into an ML error-analysis tool and answers more useful questions than complete solution rate alone:
+
+- How many correct placements precede the first error?
+- How confident is the model in its wrong choice?
+- Where does the correct digit appear in the candidate ranking?
+- Does the stronger cell classifier also produce better complete Model-only paths?
+
+### Analysis Process
+
+For each model and puzzle:
+
+1. Validate the puzzle and complete expected solution.
+2. Confirm that all puzzle clues match ground truth.
+3. Run a new `GreedyMLSudokuSolver` without backtracking.
+4. Compare traced placements with the expected digit at each position.
+5. Stop analysis at the first mismatch.
+6. Record the error position, selected and correct digits, candidates, ranking, confidence, and correct-digit rank.
+
+Stopping at the first mismatch prevents later consequences of an earlier wrong choice from being misinterpreted as independent model errors.
+
+### Implemented
+
+- Added per-puzzle Model-only result records.
+- Added detailed first-error records.
+- Added ground-truth validation.
+- Added multi-model comparison on identical puzzles.
+- Added exact-match and failure rates.
+- Added correct-decisions-before-error aggregation.
+- Added first-error confidence and correct-rank aggregation.
+- Added an executable Random Forest versus Histogram Gradient Boosting experiment.
+- Added validation and aggregation tests.
+
+### Usage
+
+Run from the project root:
+
+```bash
+python scripts/analyze_model_only_errors.py
+```
+
+### Evaluation Configuration
+
+```text
+Removal rates: 50%, 60%, 65%
+Training solutions per rate: 100
+Evaluation puzzles per rate: 20
+Test size: 20%
+Training seed: 42
+Evaluation seed: 123
+Random Forest estimators: 100
+Gradient Boosting iterations: 100
+Evaluation puzzles: unique solution
+Backtracking: disabled
+```
+
+### Results
+
+| Removal | Model | Exact | Failure | Correct before error | Error confidence | Correct rank |
+|---:|---|---:|---:|---:|---:|---:|
+| 50% | Random Forest | 100.00% | 0.00% | n/a | n/a | n/a |
+| 50% | Histogram Gradient Boosting | 100.00% | 0.00% | n/a | n/a | n/a |
+| 60% | Random Forest | 55.00% | 45.00% | 13.67 | 31.22% | 2.00 |
+| 60% | Histogram Gradient Boosting | 65.00% | 35.00% | 14.57 | 72.05% | 2.00 |
+| 65% | Random Forest | 25.00% | 75.00% | 13.60 | 29.60% | 2.00 |
+| 65% | Histogram Gradient Boosting | 30.00% | 70.00% | 9.86 | 68.52% | 2.00 |
+
+### Interpretation
+
+Both models solve every 50% removal puzzle because these examples require no ambiguous model decisions.
+
+Histogram Gradient Boosting improves exact match by 10 percentage points at 60% removal and 5 percentage points at 65% removal. Its better cell-level ranking therefore produces a modest improvement in complete irreversible decision sequences.
+
+At every observed first error, the correct digit has average rank 2.00 for both classifiers. The model therefore usually makes a narrow Top-1 versus Top-2 mistake rather than placing the correct digit far down the ranking.
+
+Histogram Gradient Boosting is substantially more confident when wrong. Its mean wrong Top-1 confidence is 72.05% at 60% and 68.52% at 65%, compared with 31.22% and 29.60% for Random Forest. This agrees with the earlier calibration experiments showing Gradient Boosting overconfidence.
+
+At 65% removal, failed Gradient Boosting attempts average fewer correct preceding placements than failed Random Forest attempts. A higher overall cell-level accuracy does not guarantee that the first error occurs later on every difficult solving path.
+
+### Testing
+
+The tests cover:
+
+- exact deterministic attempts,
+- first wrong ML decisions,
+- selected and correct digits,
+- one-based correct-digit rank,
+- selected confidence,
+- aggregate success and error metrics,
+- successful groups without error averages,
+- mismatched puzzle clues,
+- mismatched puzzle and solution counts,
+- empty models and puzzle collections.
+
+Results:
+
+```text
+Analysis tests: 8 passed
+Full suite: 243 passed
+```
+
+### Limitations
+
+- One training and evaluation seed is used.
+- Only 20 puzzles per removal rate are evaluated.
+- Confidence is raw and not recalibrated.
+- Metrics describe the first error only.
+- The analysis assumes the supplied ground truth is the intended solution.
+- Empty 50% error groups correctly produce `n/a` rather than a numeric average.
+
+### Next Step
+
+Implement a bounded Beam Search that retains the strongest two or three candidate paths. The correct digit's average rank of 2.00 suggests that a small beam may recover many Greedy failures without exploring the full backtracking tree.
+
+### Conclusion
+
+Histogram Gradient Boosting is the better Model-only classifier in complete-solution rate, but its mistakes are strongly overconfident. The correct choice is usually immediately behind the wrong Top-1 choice, making Beam Search the most informative next experiment.
