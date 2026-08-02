@@ -258,6 +258,16 @@ Repeats Raw, Sigmoid, and Isotonic probability evaluation across three random se
 
 Sigmoid consistently improves raw probability quality, but its benefit does not always survive candidate masking. After Sudoku constraints, the uncalibrated model has better ECE and log loss at removal rates of 0.60 and 0.65. Calibration therefore is not enabled globally in the solver.
 
+### Compare Classifiers
+
+```bash
+python scripts/evaluate_model_comparison.py
+```
+
+Compares Logistic Regression, Random Forest, Extra Trees, and Histogram Gradient Boosting on the same solution-level split and complete 118-feature representation. Both raw and candidate-constrained probability rankings are evaluated.
+
+In the current single-split experiment, Histogram Gradient Boosting achieves the best ranking with 75.75% Top-1 accuracy and the best raw log loss of 0.6129. This is 8.87 percentage points more Top-1 accuracy than the Random Forest, but the result still requires repeated evaluation across seeds and removal rates.
+
 ## Hybrid Solver
 
 `HybridSudokuSolver` solves complete puzzles while preserving Sudoku validity. It selects constrained cells first, ranks ambiguous candidates with the trained Random Forest, and uses backtracking when a prediction leads to a dead end.

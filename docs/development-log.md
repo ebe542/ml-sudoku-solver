@@ -2789,3 +2789,154 @@ Compare alternative classifiers on the same solution-level splits and 118-featur
 ### Conclusion
 
 Sigmoid reliably improves raw Random-Forest probabilities, but candidate masking changes the calibration problem. For harder puzzles, the uncalibrated constrained model is better calibrated than either post-trained alternative. Repeated evaluation therefore supports retaining raw candidate ranking in the solver while treating calibration as an analysis tool rather than a universal pipeline improvement.
+
+---
+## Commit 32 - Classifier Comparison
+
+**Commit:** `feat: add classifier comparison`
+
+### Objective
+
+Compare the existing Random Forest with alternative classifiers while keeping training data, test data, and the complete 118-feature representation fixed.
+
+### Motivation
+
+Random Forest was selected as a practical and interpretable tabular baseline. The preceding experiments showed that most predictive quality comes from Sudoku-specific feature engineering. Once the feature representation was understood, it became meaningful to ask whether a different classifier could exploit the same information more effectively.
+
+### Compared Models
+
+| Model | Learning strategy |
+|---|---|
+| Logistic Regression | linear probabilistic baseline |
+| Random Forest | independently trained and averaged decision trees |
+| Extra Trees | highly randomized decision-tree ensemble |
+| Histogram Gradient Boosting | sequential error-correcting tree ensemble |
+
+Logistic Regression uses `StandardScaler` in a pipeline because its optimization is sensitive to feature scales. The three tree-based methods use the original feature values.
+
+### Controlled Design
+
+Every classifier receives identical:
+
+- training samples,
+- target values,
+- evaluation samples,
+- solution-level split,
+- 118-feature representation,
+- random seed where supported.
+
+Only the learning algorithm changes. This isolates classifier choice from data-generation and feature-engineering effects.
+
+### Implemented
+
+- Added a common probability-model adapter.
+- Added Logistic Regression with standardized features.
+- Added direct scikit-learn Random Forest baseline.
+- Added Extra Trees.
+- Added Histogram Gradient Boosting.
+- Added shared training and evaluation logic.
+- Added raw and candidate-constrained result modes.
+- Reused Top-k, MRR, confidence, ECE, and log-loss analysis.
+- Added probability-normalization and model-configuration tests.
+- Added a command-line comparison experiment.
+
+### Usage
+
+Run the experiment from the project root:
+
+```bash
+python scripts/evaluate_model_comparison.py
+```
+
+### Evaluation Configuration
+
+```text
+Generated Sudoku solutions: 100
+Training/test split: 80% / 20%
+Removal rate: 0.50
+Training samples: 3,200
+Evaluation samples: 800
+Feature count: 118
+Tree estimators or boosting iterations: 100
+Random seed: 42
+```
+
+### Raw Ranking Results
+
+| Model | Top-1 | Top-2 | Top-3 | MRR |
+|---|---:|---:|---:|---:|
+| Logistic Regression | 68.00% | 90.00% | 97.50% | 0.8206 |
+| Random Forest | 66.88% | 90.00% | 97.50% | 0.8152 |
+| Extra Trees | 69.12% | 89.00% | 97.00% | 0.8246 |
+| Histogram Gradient Boosting | 75.75% | 91.50% | 98.38% | 0.8630 |
+
+Histogram Gradient Boosting improves Top-1 accuracy by 8.87 percentage points and MRR by 0.0478 compared with Random Forest. Its sequential trees can focus on residual classification errors that independently trained Random Forest trees do not target directly.
+
+### Raw Probability Quality
+
+| Model | Confidence | ECE | Log loss |
+|---|---:|---:|---:|
+| Logistic Regression | 83.97% | 0.1608 | 0.9574 |
+| Random Forest | 36.28% | 0.3093 | 1.1396 |
+| Extra Trees | 38.89% | 0.3048 | 1.0668 |
+| Histogram Gradient Boosting | 86.56% | 0.1093 | 0.6129 |
+
+Histogram Gradient Boosting assigns substantially more probability to correct classes and has the lowest log loss. Logistic Regression and Histogram Gradient Boosting are overconfident, while Random Forest and Extra Trees are underconfident.
+
+### Candidate-Constrained Results
+
+| Model | Top-1 | Top-2 | Top-3 | MRR | Confidence | ECE | Log loss |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| Logistic Regression | 68.38% | 90.62% | 98.62% | 0.8250 | 85.90% | 0.1766 | 0.9279 |
+| Random Forest | 66.88% | 90.00% | 97.50% | 0.8153 | 59.20% | 0.0801 | 0.6960 |
+| Extra Trees | 69.12% | 89.00% | 97.00% | 0.8247 | 58.67% | 0.1045 | 0.6980 |
+| Histogram Gradient Boosting | 75.75% | 91.50% | 98.38% | 0.8630 | 86.57% | 0.1095 | 0.6127 |
+
+Candidate masking improves Logistic Regression's Top-1, Top-2, and Top-3 values, showing that invalid digits occasionally occupy useful ranking positions in its raw output.
+
+The three tree ensembles show almost no ranking change after masking. Their candidate features already lead them to place negligible useful probability on illegal digits. Histogram Gradient Boosting's raw and constrained log loss are also nearly identical.
+
+### Interpretation
+
+Histogram Gradient Boosting is the clear winner of this first classifier comparison. It has the best Top-1, Top-2, Top-3, MRR, and log loss. Its constrained ECE of 0.1095 is worse than the Random Forest's 0.0801, however, because its 86.57% confidence exceeds its 75.75% accuracy.
+
+Logistic Regression slightly outperforms Random Forest in ranking. This demonstrates that the engineered candidate and interaction features expose meaningful relationships even to a linear classifier. Its strong overconfidence limits the quality of its raw probabilities.
+
+Extra Trees improves Top-1 but loses slightly at Top-2 and Top-3. Its constrained log loss is nearly identical to Random Forest, so it does not yet offer a compelling overall replacement.
+
+The experiment changes the model-selection hypothesis but not the production model. Histogram Gradient Boosting must first reproduce its advantage across multiple seeds, harder removal rates, runtime measurements, and complete-solver evaluations.
+
+### Testing
+
+The tests cover:
+
+- the expected four model configurations,
+- training of every classifier,
+- nine-class probability shapes,
+- probability bounds and normalization,
+- learned class preservation,
+- invalid estimator counts,
+- shared evaluation through a controlled fake model,
+- raw and candidate-constrained result creation.
+
+Result:
+
+`204 passed`
+
+### Limitations
+
+- One solution-level split and one random seed are used.
+- Only removal rate 0.50 is evaluated.
+- Hyperparameters are not tuned independently per classifier.
+- One estimator-count parameter does not represent identical model capacity across algorithms.
+- Training and inference runtime are not measured.
+- Complete-solver performance is not evaluated.
+- The alternative classifiers are not persisted or exposed through the CLI.
+
+### Next Step
+
+Repeat the classifier comparison across seeds and removal rates while measuring training and inference time. If Histogram Gradient Boosting remains superior, integrate it behind the common model interface and compare complete Hybrid solver behavior.
+
+### Conclusion
+
+The classifier choice matters even with fixed domain-specific features. Histogram Gradient Boosting substantially outperforms the current Random Forest in the first controlled comparison, while Logistic Regression reveals how much predictive structure is already encoded by feature engineering. Broader evaluation is required before replacing the established solver model.

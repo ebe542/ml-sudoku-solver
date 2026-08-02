@@ -774,10 +774,77 @@ Normalize to sum 1
 
 The fallback expresses absence of a usable model preference without inventing an arbitrary ranking or permitting invalid probability values.
 
+### Classifier Comparison
+
+The classifier comparison keeps data and feature engineering fixed while replacing only the classification algorithm. Every model receives the same solution-level training/test split and all 118 features.
+
+The compared models represent different learning strategies:
+
+- Logistic Regression provides a standardized linear baseline.
+- Random Forest is the existing independently averaged tree ensemble.
+- Extra Trees increases randomization in tree construction.
+- Histogram Gradient Boosting builds trees sequentially to correct earlier errors.
+
+`ProbabilityModelAdapter` gives all scikit-learn estimators the shared `fit`, `predict_probabilities`, and `classes` interface used by the ranking analysis. Logistic Regression is wrapped in a pipeline with `StandardScaler`; the tree models consume the original feature values.
+
+```text
+Shared 118-feature training data
+                |
+    +-----------+-----------+-----------+
+    |           |           |           |
+    v           v           v           v
+ Logistic    Random       Extra      Histogram
+Regression   Forest       Trees      Gradient Boosting
+    |           |           |           |
+    +-----------+-----------+-----------+
+                |
+                v
+Shared raw and candidate-constrained evaluation
+```
+
+`ModelComparisonResult` stores raw and candidate-constrained `ProbabilityRankingResult` values for one classifier. `evaluate_models()` trains every supplied model and applies the same evaluation pipeline.
+
+The first comparison used 3,200 training samples, 800 evaluation samples, 118 features, removal rate 0.50, and random seed 42.
+
+Raw ranking results were:
+
+| Model | Top-1 | Top-2 | Top-3 | MRR |
+|---|---:|---:|---:|---:|
+| Logistic Regression | 68.00% | 90.00% | 97.50% | 0.8206 |
+| Random Forest | 66.88% | 90.00% | 97.50% | 0.8152 |
+| Extra Trees | 69.12% | 89.00% | 97.00% | 0.8246 |
+| Histogram Gradient Boosting | 75.75% | 91.50% | 98.38% | 0.8630 |
+
+Raw probability-quality results were:
+
+| Model | Confidence | ECE | Log loss |
+|---|---:|---:|---:|
+| Logistic Regression | 83.97% | 0.1608 | 0.9574 |
+| Random Forest | 36.28% | 0.3093 | 1.1396 |
+| Extra Trees | 38.89% | 0.3048 | 1.0668 |
+| Histogram Gradient Boosting | 86.56% | 0.1093 | 0.6129 |
+
+Candidate-constrained results were:
+
+| Model | Top-1 | Top-2 | Top-3 | MRR | Confidence | ECE | Log loss |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| Logistic Regression | 68.38% | 90.62% | 98.62% | 0.8250 | 85.90% | 0.1766 | 0.9279 |
+| Random Forest | 66.88% | 90.00% | 97.50% | 0.8153 | 59.20% | 0.0801 | 0.6960 |
+| Extra Trees | 69.12% | 89.00% | 97.00% | 0.8247 | 58.67% | 0.1045 | 0.6980 |
+| Histogram Gradient Boosting | 75.75% | 91.50% | 98.38% | 0.8630 | 86.57% | 0.1095 | 0.6127 |
+
+Histogram Gradient Boosting provides the strongest ranking and lowest log loss in this experiment. It improves Top-1 accuracy by 8.87 percentage points over Random Forest, but is overconfident: its constrained confidence is 86.57% at 75.75% accuracy.
+
+Logistic Regression demonstrates that the engineered features expose substantial linearly usable information, although its probabilities are also overconfident. Extra Trees improves Top-1 over Random Forest but does not provide a clear overall advantage.
+
+Candidate constraints improve Logistic Regression's ranking, while all three tree ensembles already place almost all useful probability mass on valid candidates. Calibration quality and ranking quality therefore remain separate model-selection criteria.
+
 ## Current Limitation
 
 The current Random Forest cannot reliably solve ambiguous puzzles without correction: Greedy exact match falls to 55% at 60% removal and 25% at 65% removal. Its 66.88% Top-1 accuracy is useful for search ordering but is insufficient for an unrecoverable decision sequence. The model remains a cell-level classifier rather than an end-to-end grid model.
 
 The repeated ablation covers three seeds and three removal rates, but this is still a small empirical sample. The raw grid contributes little predictive ability by itself, and most performance comes from explicitly encoded Sudoku constraints. The current model therefore remains dependent on feature engineering rather than learning Sudoku rules directly.
 
-Repeated evaluation shows that Sigmoid reliably improves raw probability quality but is not uniformly beneficial after candidate masking. A single global calibration strategy is therefore not justified for the solver. Isotonic may require more calibration data, and alternative classifiers have not been compared. Calibrated models remain analysis components and are not integrated into persistence or the production solver. Cell-level metrics also remain distinct from complete-puzzle performance.
+Repeated evaluation shows that Sigmoid reliably improves raw probability quality but is not uniformly beneficial after candidate masking. A single global calibration strategy is therefore not justified for the solver.
+
+Histogram Gradient Boosting outperforms Random Forest in the first classifier comparison, but only one split at removal rate 0.50 has been measured. Training time, inference time, repeated stability, harder removal rates, model persistence, and complete-solver behavior have not yet been compared. The production solver therefore continues to use the established Random Forest until the alternative is validated more broadly.
