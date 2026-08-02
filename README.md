@@ -238,6 +238,16 @@ Repeats the cumulative 82-, 91-, and 118-feature comparison across independently
 
 The repeated experiment confirms that raw grid features remain near random accuracy and that candidate features consistently provide the largest improvement. Interaction features improve ranking at every removal rate, although their incremental benefit decreases as more cells are removed.
 
+### Evaluate Probability Calibration
+
+```bash
+python scripts/evaluate_probability_calibration.py
+```
+
+Compares the full 118-feature Random Forest with Sigmoid and Isotonic probability calibration. Model training, calibration, and final evaluation use independently generated Sudoku datasets. Each method is evaluated with raw probabilities and after Sudoku candidate constraints are applied.
+
+In the current experiment, Sigmoid calibration reduces raw expected calibration error from 0.2963 to 0.0492 and raw log loss from 1.1521 to 0.7818. After candidate constraints, it reaches an expected calibration error of 0.0518 and a log loss of 0.7134 without materially changing the model's ranking performance.
+
 ## Hybrid Solver
 
 `HybridSudokuSolver` solves complete puzzles while preserving Sudoku validity. It selects constrained cells first, ranks ambiguous candidates with the trained Random Forest, and uses backtracking when a prediction leads to a dead end.

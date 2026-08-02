@@ -2492,3 +2492,145 @@ Compare probability-calibration methods for the full 118-feature model. The goal
 ### Conclusion
 
 The feature-engineering findings are stable across independently generated datasets and removal rates. Candidate indicators provide most of the predictive improvement, interaction features consistently improve ranking, and raw grid features alone remain near random performance. The next model-focused challenge is improving probability calibration without losing ranking quality.
+
+---
+## Commit 30 - Probability-Calibration Analysis
+
+**Commit:** `feat: add probability calibration analysis`
+
+### Objective
+
+Improve the reliability of the full Random Forest's predicted probabilities while preserving its useful candidate ranking.
+
+### Motivation
+
+The repeated feature ablation showed that the 118-feature model has the best ranking but is strongly underconfident and has worse raw ECE and log loss than the 91-feature model. The solver mainly needs ranking, but reliable confidence values are valuable for model analysis and future confidence-aware search strategies.
+
+### Calibration Methods
+
+Two post-training calibration methods are compared:
+
+- Sigmoid calibration fits a parametric logistic mapping and is generally robust with moderate calibration datasets.
+- Isotonic calibration fits a flexible monotonic mapping and can represent more complex relationships but is more susceptible to overfitting.
+
+Both methods operate on an already fitted Random Forest. They do not change the 118 input features or independently learn Sudoku rules.
+
+### Data Separation
+
+Training, calibration, and evaluation use independently generated Sudoku collections:
+
+```text
+Seed 42                 Seed 123              Seed 202
+Training data           Calibration data      Evaluation data
+     |                         |                     |
+     v                         v                     v
+Random Forest ----------> Calibrator ----------> Final metrics
+```
+
+This separation is essential because measuring probability quality on the calibration samples would produce an optimistic estimate, especially for Isotonic calibration.
+
+### Implementation
+
+`FrozenEstimator` wraps the trained `RandomForestClassifier` so `CalibratedClassifierCV` does not refit it. The calibration function supplies one explicit split containing every calibration sample. The frozen training side is inactive, while the prediction side supplies all samples for fitting the calibrator.
+
+`CalibratedProbabilityModel` exposes the same `predict_probabilities` and `classes` interface used by the existing probability-ranking analysis. This allows raw, Sigmoid, and Isotonic models to share the same evaluation logic.
+
+### Implemented
+
+- Added supported Sigmoid and Isotonic calibration methods.
+- Added a calibrated-model adapter.
+- Added frozen-estimator calibration on independent samples.
+- Added input and method validation.
+- Added comparison with the uncalibrated baseline.
+- Added raw and candidate-constrained evaluation modes.
+- Reused Top-k, MRR, confidence, ECE, and log-loss metrics.
+- Added an executable experiment with separated datasets.
+- Added unit tests for both calibration methods and result modes.
+
+### Usage
+
+Run the experiment from the project root:
+
+```bash
+python scripts/evaluate_probability_calibration.py
+```
+
+### Evaluation Configuration
+
+```text
+Feature representation: 118 features
+Removal rate: 0.50
+Random Forest estimators: 100
+Training seed: 42
+Training samples: 3,200
+Calibration seed: 123
+Calibration samples: 800
+Evaluation seed: 202
+Evaluation samples: 800
+```
+
+### Raw Probability Results
+
+| Method | Top-1 | Top-2 | Top-3 | MRR | Confidence | ECE | Log loss |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| Raw | 65.50% | 89.38% | 97.50% | 0.8076 | 35.87% | 0.2963 | 1.1521 |
+| Sigmoid | 66.25% | 88.38% | 97.50% | 0.8095 | 63.68% | 0.0492 | 0.7818 |
+| Isotonic | 66.25% | 88.62% | 97.88% | 0.8101 | 64.12% | 0.0578 | 0.9596 |
+
+Sigmoid reduces raw ECE by approximately 83% and raw log loss by approximately 32% relative to the uncalibrated model. Its mean confidence of 63.68% is much closer to the observed 66.25% Top-1 accuracy than the raw confidence of 35.87%.
+
+### Candidate-Constrained Results
+
+| Method | Top-1 | Top-2 | Top-3 | MRR | Confidence | ECE | Log loss |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| Raw | 65.50% | 89.38% | 97.50% | 0.8076 | 57.69% | 0.0781 | 0.7181 |
+| Sigmoid | 66.25% | 88.38% | 97.62% | 0.8098 | 68.34% | 0.0518 | 0.7134 |
+| Isotonic | 66.25% | 88.62% | 97.88% | 0.8101 | 64.53% | 0.0564 | 0.9546 |
+
+Candidate constraints already improve the raw model substantially by removing illegal digits and renormalizing the remaining probability mass. Sigmoid further reduces ECE from 0.0781 to 0.0518, while log loss improves only slightly from 0.7181 to 0.7134.
+
+### Interpretation
+
+Sigmoid is the best calibration method for this experiment. It greatly improves raw probability quality and provides a smaller additional benefit after Sudoku candidate constraints are applied.
+
+Ranking changes only slightly. Sigmoid raises Top-1 accuracy by 0.75 percentage points but lowers Top-2 by one point. Multiclass calibration can alter class order because each digit class is adjusted separately and the outputs are subsequently normalized.
+
+Isotonic produces similar ranking but a worse log loss than Sigmoid. Its constrained log loss is also worse than the uncalibrated baseline. This suggests that its flexible mappings overfit aspects of the 800-sample calibration dataset or assign excessively small probability to the correct class in some evaluation samples.
+
+The strongest solver-oriented combination in this experiment is the 118-feature Random Forest with Sigmoid calibration followed by candidate constraints. It reaches 66.25% Top-1 accuracy, 97.62% Top-3 accuracy, 0.0518 ECE, and 0.7134 log loss.
+
+### Testing
+
+The tests cover:
+
+- supported calibration methods,
+- valid Sigmoid probabilities,
+- valid Isotonic probabilities,
+- probability normalization,
+- learned digit-class preservation,
+- unsupported method validation,
+- empty calibration data,
+- mismatched calibration inputs,
+- comparison of raw, Sigmoid, and Isotonic models,
+- raw and candidate-constrained ranking modes.
+
+Result:
+
+`192 passed`
+
+### Limitations
+
+- One training, calibration, and evaluation seed combination is used.
+- Only removal rate 0.50 is evaluated.
+- The Isotonic calibration sample may be too small for its flexibility.
+- No reliability diagram or per-class calibration analysis is included.
+- The calibrated model is not persisted or used by the solver yet.
+- Improved probability quality does not automatically improve complete-puzzle solving.
+
+### Next Step
+
+Repeat the calibration comparison across random seeds and removal rates. If Sigmoid remains robust, integrate calibrated probabilities into a solver experiment and measure whether confidence-aware behavior provides value beyond candidate ordering.
+
+### Conclusion
+
+Post-training Sigmoid calibration corrects most of the Random Forest's raw underconfidence without materially changing its strong candidate ranking. Sudoku candidate constraints already supply much of the probability improvement, but Sigmoid produces the most reliable overall probabilities in this controlled experiment.

@@ -641,10 +641,73 @@ Probability-quality means were:
 
 The low Top-1 standard deviations show that the relative ordering of feature configurations is stable. Increasing removal rate reduces the information supplied by local constraints, so accuracy decreases for both feature-engineered models. Interaction features consistently improve ranking but consistently worsen raw ECE and log loss relative to the 91-feature model.
 
+### Probability Calibration
+
+Probability calibration adjusts the numeric confidence of an already trained classifier without changing its feature representation. The implementation compares Sigmoid and Isotonic calibration through scikit-learn's `CalibratedClassifierCV`.
+
+```text
+Training set
+     |
+     v
+118-feature Random Forest
+     |
+     v
+FrozenEstimator
+     |
+     +-----------------------+
+     |                       |
+     v                       v
+Sigmoid calibrator     Isotonic calibrator
+     |                       |
+     +-----------+-----------+
+                 |
+                 v
+       Independent evaluation set
+                 |
+        +--------+--------+
+        |                 |
+        v                 v
+ Raw probabilities   Candidate-constrained
+```
+
+`FrozenEstimator` prevents calibration from retraining the Random Forest. A single explicit calibration split exposes every calibration sample to the calibrator while the frozen estimator's fitting operation remains inactive. `CalibratedProbabilityModel` adapts the scikit-learn classifier to the project's `predict_probabilities` and `classes` interface.
+
+`ProbabilityCalibrationResult` stores raw and candidate-constrained `ProbabilityRankingResult` values for each method. The evaluation always includes the uncalibrated model as a baseline.
+
+The experiment uses three independently generated datasets with removal rate 0.50:
+
+| Purpose | Seed | Samples used |
+|---|---:|---:|
+| Random Forest training | 42 | 3,200 |
+| Probability calibration | 123 | 800 |
+| Final evaluation | 202 | 800 |
+
+Keeping final evaluation data separate from calibration data prevents the flexible Isotonic mapping from being evaluated on the samples used to fit it.
+
+Raw-probability results were:
+
+| Method | Top-1 | Top-2 | Top-3 | MRR | Confidence | ECE | Log loss |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| Raw | 65.50% | 89.38% | 97.50% | 0.8076 | 35.87% | 0.2963 | 1.1521 |
+| Sigmoid | 66.25% | 88.38% | 97.50% | 0.8095 | 63.68% | 0.0492 | 0.7818 |
+| Isotonic | 66.25% | 88.62% | 97.88% | 0.8101 | 64.12% | 0.0578 | 0.9596 |
+
+Candidate-constrained results were:
+
+| Method | Top-1 | Top-2 | Top-3 | MRR | Confidence | ECE | Log loss |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| Raw | 65.50% | 89.38% | 97.50% | 0.8076 | 57.69% | 0.0781 | 0.7181 |
+| Sigmoid | 66.25% | 88.38% | 97.62% | 0.8098 | 68.34% | 0.0518 | 0.7134 |
+| Isotonic | 66.25% | 88.62% | 97.88% | 0.8101 | 64.53% | 0.0564 | 0.9546 |
+
+Sigmoid calibration provides the best probability quality in this experiment. It substantially corrects the raw model's underconfidence. Candidate constraints already provide a strong improvement by removing probability mass from illegal digits, so the additional constrained log-loss improvement from Sigmoid is small.
+
+Calibration changes ranking only slightly because multiclass calibration adjusts each class separately before normalization. Isotonic achieves similar ranking but worse log loss, which is consistent with its greater flexibility and possible overfitting on the calibration sample.
+
 ## Current Limitation
 
 The current Random Forest cannot reliably solve ambiguous puzzles without correction: Greedy exact match falls to 55% at 60% removal and 25% at 65% removal. Its 66.88% Top-1 accuracy is useful for search ordering but is insufficient for an unrecoverable decision sequence. The model remains a cell-level classifier rather than an end-to-end grid model.
 
 The repeated ablation covers three seeds and three removal rates, but this is still a small empirical sample. The raw grid contributes little predictive ability by itself, and most performance comes from explicitly encoded Sudoku constraints. The current model therefore remains dependent on feature engineering rather than learning Sudoku rules directly.
 
-The full feature set improves ranking but produces worse raw probability calibration than the candidate-indicator model. Calibration methods and alternative classifiers have not yet been compared. Cell-level metrics also remain distinct from complete-puzzle performance.
+Sigmoid improves probability quality for the evaluated split, but calibration has not yet been repeated across seeds and removal rates. Isotonic may require more calibration data, and alternative classifiers have not been compared. The calibrated model is currently an analysis component and is not yet integrated into model persistence or the production solver. Cell-level metrics also remain distinct from complete-puzzle performance.
