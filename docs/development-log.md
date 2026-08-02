@@ -2940,3 +2940,176 @@ Repeat the classifier comparison across seeds and removal rates while measuring 
 ### Conclusion
 
 The classifier choice matters even with fixed domain-specific features. Histogram Gradient Boosting substantially outperforms the current Random Forest in the first controlled comparison, while Logistic Regression reveals how much predictive structure is already encoded by feature engineering. Broader evaluation is required before replacing the established solver model.
+
+---
+## Commit 33 - Repeated Classifier and Runtime Comparison
+
+**Commit:** `feat: add repeated classifier comparison`
+
+### Objective
+
+Verify classifier performance across independently generated datasets and difficulty levels while adding training and inference runtime measurements.
+
+### Motivation
+
+Commit 32 identified Histogram Gradient Boosting as the strongest classifier on one 50% removal split. A replacement for the established Random Forest requires evidence that this advantage remains stable across seeds and harder data. Computational cost must also be measured because model quality alone does not determine solver suitability.
+
+### Runtime Measurement
+
+`evaluate_models_with_timing()` measures two isolated operations with `perf_counter()`:
+
+```text
+Training time  = model.fit(X_train, y_train)
+Inference time = model.predict_probabilities(X_test)
+```
+
+Inference measures one batch probability prediction over the complete test array. Feature generation, candidate masking, metric calculation, and additional analysis predictions are excluded from the recorded duration.
+
+This provides a controlled classifier comparison, but it is not equivalent to end-to-end solver runtime. The solver performs many small predictions while repeatedly recalculating features and exploring search branches.
+
+### Repeated Design
+
+For every removal rate and seed, the evaluation:
+
+1. Generates a new solution-level train/test split.
+2. Creates Logistic Regression, Random Forest, Extra Trees, and Histogram Gradient Boosting.
+3. Measures training and one batch inference call.
+4. Calculates raw and candidate-constrained probability metrics.
+5. Aggregates all values across seeds.
+
+```text
+3 removal rates x 3 seeds x 4 classifiers
+                       =
+              36 trained models
+```
+
+### Implemented
+
+- Added timed model-comparison results.
+- Added isolated training and inference measurement.
+- Added repeated model evaluation across seeds and removal rates.
+- Added runtime, ranking, calibration, and log-loss summaries.
+- Added raw and candidate-constrained aggregation.
+- Added reusable metric-storage and summary helpers.
+- Added validation and integration tests.
+- Added a command-line experiment with ranking, probability, and runtime tables.
+
+### Usage
+
+Run the experiment from the project root:
+
+```bash
+python scripts/evaluate_repeated_model_comparison.py
+```
+
+### Evaluation Configuration
+
+```text
+Removal rates: 0.50, 0.60, 0.65
+Random seeds: 42, 123, 202
+Runs per removal rate: 3
+Generated solutions per run: 100
+Training/test split: 80% / 20%
+Feature count: 118
+Estimators or boosting iterations: 100
+Trained classifier instances: 36
+```
+
+### Ranking Results
+
+| Removal | Model | Raw Top-1 | Valid Top-1 | Top-1 SD | Valid Top-3 | MRR |
+|---:|---|---:|---:|---:|---:|---:|
+| 50% | Logistic Regression | 66.46% | 66.83% | 1.46% | 98.46% | 0.8172 |
+| 50% | Random Forest | 64.88% | 64.88% | 1.69% | 97.87% | 0.8048 |
+| 50% | Extra Trees | 65.96% | 65.96% | 2.77% | 97.83% | 0.8099 |
+| 50% | Histogram Gradient Boosting | 72.92% | 72.92% | 2.35% | 98.38% | 0.8485 |
+| 60% | Logistic Regression | 51.18% | 51.35% | 0.52% | 94.31% | 0.7165 |
+| 60% | Random Forest | 47.67% | 47.67% | 1.85% | 92.71% | 0.6919 |
+| 60% | Extra Trees | 47.26% | 47.26% | 1.08% | 92.22% | 0.6885 |
+| 60% | Histogram Gradient Boosting | 56.39% | 56.39% | 1.07% | 94.03% | 0.7445 |
+| 65% | Logistic Regression | 43.17% | 43.17% | 0.48% | 88.24% | 0.6546 |
+| 65% | Random Forest | 40.67% | 40.67% | 1.26% | 86.63% | 0.6372 |
+| 65% | Extra Trees | 39.58% | 39.58% | 2.20% | 85.93% | 0.6280 |
+| 65% | Histogram Gradient Boosting | 47.47% | 47.47% | 1.20% | 88.11% | 0.6793 |
+
+Histogram Gradient Boosting leads Top-1 and MRR at every removal rate. Its Top-1 improvement over Random Forest is 8.04 percentage points at 50%, 8.72 at 60%, and 6.80 at 65%.
+
+Logistic Regression consistently ranks second in Top-1 and slightly leads Top-3 at every rate. This reinforces the conclusion that the engineered feature representation already contains strong linearly usable Sudoku information.
+
+### Probability Quality
+
+| Removal | Model | Raw ECE | Valid ECE | Raw loss | Valid loss |
+|---:|---|---:|---:|---:|---:|
+| 50% | Logistic Regression | 0.1652 | 0.1796 | 0.9721 | 0.9460 |
+| 50% | Random Forest | 0.2932 | 0.0724 | 1.1561 | 0.7172 |
+| 50% | Extra Trees | 0.2737 | 0.0847 | 1.0765 | 0.7200 |
+| 50% | Histogram Gradient Boosting | 0.1310 | 0.1312 | 0.6670 | 0.6668 |
+| 60% | Logistic Regression | 0.2176 | 0.2263 | 1.3254 | 1.3073 |
+| 60% | Random Forest | 0.1916 | 0.0395 | 1.4299 | 1.0333 |
+| 60% | Extra Trees | 0.1631 | 0.0388 | 1.3629 | 1.0388 |
+| 60% | Histogram Gradient Boosting | 0.1488 | 0.1490 | 0.9784 | 0.9781 |
+| 65% | Logistic Regression | 0.2370 | 0.2438 | 1.4938 | 1.4836 |
+| 65% | Random Forest | 0.1459 | 0.0249 | 1.5596 | 1.1990 |
+| 65% | Extra Trees | 0.1177 | 0.0236 | 1.5064 | 1.2069 |
+| 65% | Histogram Gradient Boosting | 0.1477 | 0.1479 | 1.1837 | 1.1834 |
+
+Histogram Gradient Boosting has the lowest log loss at every rate. Its advantage over Random Forest narrows from 0.0504 at 50% to 0.0156 at 65% after candidate constraints.
+
+Random Forest and Extra Trees have the lowest constrained ECE. Candidate masking strongly improves their probability quality, while it changes Gradient Boosting almost not at all. Gradient Boosting has already learned to place nearly all probability mass on valid candidates but remains overconfident.
+
+### Runtime Results
+
+| Removal | Model | Training mean | Training SD | Inference mean | Inference SD |
+|---:|---|---:|---:|---:|---:|
+| 50% | Logistic Regression | 132.74 ms | 24.14 ms | 0.53 ms | 0.03 ms |
+| 50% | Random Forest | 118.13 ms | 1.32 ms | 18.26 ms | 4.74 ms |
+| 50% | Extra Trees | 93.21 ms | 0.50 ms | 29.63 ms | 5.70 ms |
+| 50% | Histogram Gradient Boosting | 2,422.38 ms | 652.45 ms | 10.69 ms | 0.69 ms |
+| 60% | Logistic Regression | 118.59 ms | 35.13 ms | 0.57 ms | 0.02 ms |
+| 60% | Random Forest | 124.95 ms | 4.49 ms | 25.46 ms | 0.49 ms |
+| 60% | Extra Trees | 101.73 ms | 3.82 ms | 25.86 ms | 0.06 ms |
+| 60% | Histogram Gradient Boosting | 1,636.25 ms | 30.85 ms | 11.92 ms | 0.53 ms |
+| 65% | Logistic Regression | 124.68 ms | 11.69 ms | 0.59 ms | 0.03 ms |
+| 65% | Random Forest | 126.69 ms | 3.33 ms | 25.61 ms | 0.12 ms |
+| 65% | Extra Trees | 106.04 ms | 2.33 ms | 25.83 ms | 0.40 ms |
+| 65% | Histogram Gradient Boosting | 1,601.89 ms | 20.76 ms | 14.08 ms | 2.61 ms |
+
+Extra Trees trains fastest, while Histogram Gradient Boosting requires approximately 13 to 20 times the Random Forest training time. Logistic Regression predicts the full test batch in roughly half a millisecond and is by far the fastest inference model.
+
+Gradient Boosting batch inference is faster than Random Forest and Extra Trees despite its slower training. Bagged ensembles incur overhead from evaluating and combining many independent trees. End-to-end solver timing may differ because it uses repeated small predictions rather than one test-set batch.
+
+### Testing
+
+The tests cover:
+
+- timed training and inference results,
+- non-negative measured durations,
+- repeated evaluation across removal rates and seeds,
+- all four classifier result groups,
+- runtime and probability metric aggregation,
+- raw and constrained result ranges,
+- empty removal-rate validation,
+- empty random-seed validation,
+- invalid removal rates.
+
+Result:
+
+`212 passed`
+
+### Limitations
+
+- Three seeds remain a limited timing and quality sample.
+- Wall-clock measurements depend on the computer and current system load.
+- The first 50% Gradient Boosting timing has high variation, likely including initialization or system effects.
+- Estimator counts do not imply equal capacity across algorithms.
+- No classifier-specific hyperparameter tuning is performed.
+- Batch inference does not represent per-decision solver inference.
+- Complete-puzzle solution quality, backtracking, and runtime are not yet measured.
+
+### Next Step
+
+Introduce a general solver probability-model interface and evaluate Random Forest, Logistic Regression, and Histogram Gradient Boosting inside the complete Hybrid solver. Measure exact solution rate, backtracks, ML decisions, and end-to-end puzzle runtime on identical unique-solution puzzles.
+
+### Conclusion
+
+Histogram Gradient Boosting confirms the strongest cell-level ranking and log loss across seeds and removal rates. Logistic Regression offers exceptional inference speed and competitive rankings, while Random Forest and Extra Trees provide better constrained calibration. The next decision must be based on end-to-end solver behavior rather than cell-level metrics alone.

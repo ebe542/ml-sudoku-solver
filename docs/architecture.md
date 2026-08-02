@@ -839,6 +839,92 @@ Logistic Regression demonstrates that the engineered features expose substantial
 
 Candidate constraints improve Logistic Regression's ranking, while all three tree ensembles already place almost all useful probability mass on valid candidates. Calibration quality and ranking quality therefore remain separate model-selection criteria.
 
+### Repeated Classifier and Runtime Comparison
+
+The repeated classifier comparison evaluates model quality and computational cost across three seeds and removal rates. Every run creates a new solution-level split, instantiates all four classifiers, measures fitting and one complete test-set probability prediction, and then calculates raw and candidate-constrained metrics.
+
+`TimedModelComparisonResult` extends the comparison output with training and inference durations measured by `perf_counter()`. Feature generation and metric calculation are outside the inference measurement. `RepeatedModelResult` aggregates runtime, ranking, confidence, ECE, and log loss through `MetricSummary`.
+
+```text
+Removal rate and seed
+          |
+          v
+New solution-level split
+          |
+          v
+Create four classifiers
+          |
+     +----+----------------+
+     |                     |
+     v                     v
+Timed fit            Timed predict_proba
+     |                     |
+     +----------+----------+
+                |
+                v
+Raw and constrained metrics
+                |
+                v
+Aggregate across seeds
+```
+
+Mean candidate-constrained ranking results were:
+
+| Removal | Model | Top-1 | Top-1 SD | Top-3 | MRR |
+|---:|---|---:|---:|---:|---:|
+| 50% | Logistic Regression | 66.83% | 1.46% | 98.46% | 0.8172 |
+| 50% | Random Forest | 64.88% | 1.69% | 97.87% | 0.8048 |
+| 50% | Extra Trees | 65.96% | 2.77% | 97.83% | 0.8099 |
+| 50% | Histogram Gradient Boosting | 72.92% | 2.35% | 98.38% | 0.8485 |
+| 60% | Logistic Regression | 51.35% | 0.52% | 94.31% | 0.7165 |
+| 60% | Random Forest | 47.67% | 1.85% | 92.71% | 0.6919 |
+| 60% | Extra Trees | 47.26% | 1.08% | 92.22% | 0.6885 |
+| 60% | Histogram Gradient Boosting | 56.39% | 1.07% | 94.03% | 0.7445 |
+| 65% | Logistic Regression | 43.17% | 0.48% | 88.24% | 0.6546 |
+| 65% | Random Forest | 40.67% | 1.26% | 86.63% | 0.6372 |
+| 65% | Extra Trees | 39.58% | 2.20% | 85.93% | 0.6280 |
+| 65% | Histogram Gradient Boosting | 47.47% | 1.20% | 88.11% | 0.6793 |
+
+Mean candidate-constrained probability quality was:
+
+| Removal | Model | ECE | Log loss |
+|---:|---|---:|---:|
+| 50% | Logistic Regression | 0.1796 | 0.9460 |
+| 50% | Random Forest | 0.0724 | 0.7172 |
+| 50% | Extra Trees | 0.0847 | 0.7200 |
+| 50% | Histogram Gradient Boosting | 0.1312 | 0.6668 |
+| 60% | Logistic Regression | 0.2263 | 1.3073 |
+| 60% | Random Forest | 0.0395 | 1.0333 |
+| 60% | Extra Trees | 0.0388 | 1.0388 |
+| 60% | Histogram Gradient Boosting | 0.1490 | 0.9781 |
+| 65% | Logistic Regression | 0.2438 | 1.4836 |
+| 65% | Random Forest | 0.0249 | 1.1990 |
+| 65% | Extra Trees | 0.0236 | 1.2069 |
+| 65% | Histogram Gradient Boosting | 0.1479 | 1.1834 |
+
+Mean runtime results in milliseconds were:
+
+| Removal | Model | Training | Inference |
+|---:|---|---:|---:|
+| 50% | Logistic Regression | 132.74 | 0.53 |
+| 50% | Random Forest | 118.13 | 18.26 |
+| 50% | Extra Trees | 93.21 | 29.63 |
+| 50% | Histogram Gradient Boosting | 2,422.38 | 10.69 |
+| 60% | Logistic Regression | 118.59 | 0.57 |
+| 60% | Random Forest | 124.95 | 25.46 |
+| 60% | Extra Trees | 101.73 | 25.86 |
+| 60% | Histogram Gradient Boosting | 1,636.25 | 11.92 |
+| 65% | Logistic Regression | 124.68 | 0.59 |
+| 65% | Random Forest | 126.69 | 25.61 |
+| 65% | Extra Trees | 106.04 | 25.83 |
+| 65% | Histogram Gradient Boosting | 1,601.89 | 14.08 |
+
+Histogram Gradient Boosting consistently leads Top-1, MRR, and log loss. Its Top-1 advantage over Random Forest is 8.04, 8.72, and 6.80 percentage points across increasing removal rates. Logistic Regression is consistently second in Top-1 and has marginally better Top-3 at every evaluated rate.
+
+Gradient Boosting training is approximately 13 to 20 times slower than Random Forest training, but its batch inference is faster than both bagged tree ensembles. Logistic Regression is by far the fastest inference model. These timings cover one batch prediction over the test set and do not represent the solver's repeated small predictions or feature-generation cost.
+
+Random Forest and Extra Trees remain better calibrated after candidate masking, while Gradient Boosting has the lowest log loss. Model selection therefore depends on whether ranking, probability calibration, training cost, or inference cost is prioritized.
+
 ## Current Limitation
 
 The current Random Forest cannot reliably solve ambiguous puzzles without correction: Greedy exact match falls to 55% at 60% removal and 25% at 65% removal. Its 66.88% Top-1 accuracy is useful for search ordering but is insufficient for an unrecoverable decision sequence. The model remains a cell-level classifier rather than an end-to-end grid model.
@@ -847,4 +933,4 @@ The repeated ablation covers three seeds and three removal rates, but this is st
 
 Repeated evaluation shows that Sigmoid reliably improves raw probability quality but is not uniformly beneficial after candidate masking. A single global calibration strategy is therefore not justified for the solver.
 
-Histogram Gradient Boosting outperforms Random Forest in the first classifier comparison, but only one split at removal rate 0.50 has been measured. Training time, inference time, repeated stability, harder removal rates, model persistence, and complete-solver behavior have not yet been compared. The production solver therefore continues to use the established Random Forest until the alternative is validated more broadly.
+Histogram Gradient Boosting has now confirmed its cell-level ranking advantage across three seeds and removal rates, but complete-solver behavior has not yet been measured. Batch inference does not capture repeated one-cell predictions, feature recomputation, backtracking, or total puzzle runtime. The alternative models also lack the established persistence and CLI integration of `SudokuRandomForest`. The production solver therefore continues to use Random Forest until an end-to-end comparison is complete.

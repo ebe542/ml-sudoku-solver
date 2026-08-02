@@ -5,6 +5,7 @@ from sudoku_ml.analysis.model_comparison import (
     COMPARISON_MODEL_NAMES,
     create_comparison_models,
     evaluate_models,
+    evaluate_models_with_timing,
 )
 
 
@@ -128,4 +129,35 @@ def test_evaluate_models_reports_both_probability_modes() -> None:
     )
     assert results[0].raw.top_1_accuracy == pytest.approx(
         0.5
+    )
+
+def test_evaluate_models_with_timing_reports_durations() -> None:
+    model = FakeComparisonModel()
+
+    X_train = np.zeros((2, 118))
+    y_train = np.array([1, 2])
+
+    X_test = np.zeros((2, 118))
+    X_test[:, 82:91] = 1.0
+    y_test = np.array([1, 2])
+
+    results = evaluate_models_with_timing(
+        models=(model,),
+        X_train=X_train,
+        y_train=y_train,
+        X_test=X_test,
+        y_test=y_test,
+    )
+
+    assert len(results) == 1
+
+    result = results[0]
+
+    assert result.name == "Fake Model"
+    assert result.training_seconds >= 0.0
+    assert result.inference_seconds >= 0.0
+    assert result.raw.sample_count == 2
+    assert (
+        result.candidate_constrained.sample_count
+        == 2
     )

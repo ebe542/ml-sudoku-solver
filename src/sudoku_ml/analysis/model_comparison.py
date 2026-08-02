@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from time import perf_counter
 from typing import Any
 
 import numpy as np
@@ -30,6 +31,17 @@ class ModelComparisonResult:
     """Store ranking metrics for one classifier."""
 
     name: str
+    raw: ProbabilityRankingResult
+    candidate_constrained: ProbabilityRankingResult
+
+
+@dataclass(frozen=True)
+class TimedModelComparisonResult:
+    """Store metrics and runtimes for one classifier."""
+
+    name: str
+    training_seconds: float
+    inference_seconds: float
     raw: ProbabilityRankingResult
     candidate_constrained: ProbabilityRankingResult
 
@@ -134,6 +146,57 @@ def evaluate_models(models: tuple[Any, ...], X_train: np.ndarray, y_train: np.nd
         results.append(
             ModelComparisonResult(
                 name=model.name,
+                raw=raw_ranking,
+                candidate_constrained=(
+                    constrained_ranking
+                ),
+            )
+        )
+
+    return tuple(results)
+
+def evaluate_models_with_timing(models: tuple[Any, ...], X_train: np.ndarray, y_train: np.ndarray,
+                                X_test: np.ndarray, y_test: np.ndarray) -> tuple[TimedModelComparisonResult, ...]:
+    """Train and evaluate classifiers with runtime measurement."""
+    results: list[TimedModelComparisonResult] = []
+
+    for model in models:
+        training_start = perf_counter()
+
+        model.fit(X_train, y_train)
+
+        training_seconds = (
+            perf_counter() - training_start
+        )
+
+        inference_start = perf_counter()
+
+        model.predict_probabilities(
+            X_test
+        )
+
+        inference_seconds = (
+            perf_counter() - inference_start
+        )
+
+        raw_ranking = analyze_probability_ranking(
+            model,
+            X_test,
+            y_test,
+        )
+
+        constrained_ranking = analyze_probability_ranking(
+            model,
+            X_test,
+            y_test,
+            candidate_constrained=True,
+        )
+
+        results.append(
+            TimedModelComparisonResult(
+                name=model.name,
+                training_seconds=training_seconds,
+                inference_seconds=inference_seconds,
                 raw=raw_ranking,
                 candidate_constrained=(
                     constrained_ranking

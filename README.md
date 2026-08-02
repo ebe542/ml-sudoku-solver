@@ -268,6 +268,16 @@ Compares Logistic Regression, Random Forest, Extra Trees, and Histogram Gradient
 
 In the current single-split experiment, Histogram Gradient Boosting achieves the best ranking with 75.75% Top-1 accuracy and the best raw log loss of 0.6129. This is 8.87 percentage points more Top-1 accuracy than the Random Forest, but the result still requires repeated evaluation across seeds and removal rates.
 
+### Repeat Classifier Comparison
+
+```bash
+python scripts/evaluate_repeated_model_comparison.py
+```
+
+Repeats the four-classifier comparison across three seeds and removal rates of 0.50, 0.60, and 0.65. In addition to ranking and probability quality, it reports training time and batch probability-inference time.
+
+Histogram Gradient Boosting consistently provides the best Top-1 accuracy, MRR, and log loss. Logistic Regression is the fastest inference model and has slightly better Top-3 accuracy at harder removal rates, while Random Forest and Extra Trees provide better candidate-constrained calibration.
+
 ## Hybrid Solver
 
 `HybridSudokuSolver` solves complete puzzles while preserving Sudoku validity. It selects constrained cells first, ranks ambiguous candidates with the trained Random Forest, and uses backtracking when a prediction leads to a dead end.
