@@ -116,6 +116,21 @@ def apply_candidate_constraints(probabilities: np.ndarray, classes: np.ndarray,
         keepdims=True,
     )
 
+    zero_probability_rows = (probability_sums[:, 0] == 0.0)
+
+    if np.any(zero_probability_rows):
+        constrained_probabilities[
+            zero_probability_rows
+        ] = candidate_mask[
+            zero_probability_rows
+        ].astype(float)
+
+        probability_sums = np.sum(
+            constrained_probabilities,
+            axis=1,
+            keepdims=True,
+        )
+
     return constrained_probabilities / probability_sums
 
 

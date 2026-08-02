@@ -704,10 +704,80 @@ Sigmoid calibration provides the best probability quality in this experiment. It
 
 Calibration changes ranking only slightly because multiclass calibration adjusts each class separately before normalization. Isotonic achieves similar ranking but worse log loss, which is consistent with its greater flexibility and possible overfitting on the calibration sample.
 
+### Repeated Probability Calibration
+
+The repeated calibration analysis tests whether the single-split calibration result generalizes across seeds and removal rates. Each run derives three independent dataset seeds from one run seed:
+
+```text
+run seed          -> Random Forest training
+run seed + 10,000 -> probability calibration
+run seed + 20,000 -> final evaluation
+```
+
+For each removal rate, `RepeatedCalibrationMethodResult` summarizes raw and candidate-constrained Top-k accuracy, MRR, confidence, ECE, and log loss. `RepeatedCalibrationRemovalRateResult` groups Raw, Sigmoid, and Isotonic results, while `RepeatedProbabilityCalibrationResult` stores all removal rates and run seeds.
+
+Mean raw-probability quality across seeds was:
+
+| Removal rate | Method | Confidence | ECE | ECE SD | Log loss |
+|---:|---|---:|---:|---:|---:|
+| 50% | Raw | 35.58% | 0.3122 | 0.0036 | 1.1507 |
+| 50% | Sigmoid | 63.73% | 0.0538 | 0.0142 | 0.7584 |
+| 50% | Isotonic | 64.18% | 0.0403 | 0.0112 | 1.0814 |
+| 60% | Raw | 28.54% | 0.1942 | 0.0058 | 1.4296 |
+| 60% | Sigmoid | 49.18% | 0.0402 | 0.0052 | 1.1697 |
+| 60% | Isotonic | 48.41% | 0.0309 | 0.0099 | 1.3689 |
+| 65% | Raw | 26.05% | 0.1360 | 0.0047 | 1.5637 |
+| 65% | Sigmoid | 43.23% | 0.0462 | 0.0133 | 1.3903 |
+| 65% | Isotonic | 41.59% | 0.0316 | 0.0070 | 1.5319 |
+
+Mean candidate-constrained probability quality was:
+
+| Removal rate | Method | Confidence | ECE | ECE SD | Log loss |
+|---:|---|---:|---:|---:|---:|
+| 50% | Raw | 57.47% | 0.0928 | 0.0030 | 0.7151 |
+| 50% | Sigmoid | 68.38% | 0.0350 | 0.0108 | 0.6907 |
+| 50% | Isotonic | 64.62% | 0.0364 | 0.0088 | 1.0761 |
+| 60% | Raw | 44.74% | 0.0414 | 0.0032 | 1.0271 |
+| 60% | Sigmoid | 55.50% | 0.0699 | 0.0080 | 1.0557 |
+| 60% | Isotonic | 50.04% | 0.0364 | 0.0117 | 1.3443 |
+| 65% | Raw | 38.84% | 0.0156 | 0.0063 | 1.2022 |
+| 65% | Sigmoid | 49.65% | 0.1002 | 0.0102 | 1.2586 |
+| 65% | Isotonic | 43.85% | 0.0474 | 0.0102 | 1.4893 |
+
+Sigmoid reduces raw log loss at every removal rate, but candidate masking changes the calibrated distribution through zeroing and renormalization. At 60% and 65% removal, this makes Sigmoid overconfident and gives the uncalibrated constrained model better ECE and log loss. Calibration has only minor effects on Top-k accuracy and MRR, so it provides little direct benefit to candidate ordering.
+
+Isotonic sometimes produces the lowest raw ECE but consistently has worse log loss than Sigmoid. This indicates rare high-penalty errors that ECE alone does not expose.
+
+### Zero-Mass Candidate Fallback
+
+Isotonic calibration exposed an edge case in candidate masking: every valid candidate can receive zero probability even when the Sudoku candidate mask itself is non-empty. Direct renormalization would then divide by zero and produce `NaN` values.
+
+`apply_candidate_constraints()` detects rows with zero valid probability mass and replaces them with a uniform distribution over valid candidates before normalization:
+
+```text
+Valid candidates exist
+        |
+        v
+Valid probability sum = 0?
+        |
+   +----+----+
+   |         |
+  no        yes
+   |         |
+   |    Uniform valid-candidate weights
+   |         |
+   +----+----+
+        |
+        v
+Normalize to sum 1
+```
+
+The fallback expresses absence of a usable model preference without inventing an arbitrary ranking or permitting invalid probability values.
+
 ## Current Limitation
 
 The current Random Forest cannot reliably solve ambiguous puzzles without correction: Greedy exact match falls to 55% at 60% removal and 25% at 65% removal. Its 66.88% Top-1 accuracy is useful for search ordering but is insufficient for an unrecoverable decision sequence. The model remains a cell-level classifier rather than an end-to-end grid model.
 
 The repeated ablation covers three seeds and three removal rates, but this is still a small empirical sample. The raw grid contributes little predictive ability by itself, and most performance comes from explicitly encoded Sudoku constraints. The current model therefore remains dependent on feature engineering rather than learning Sudoku rules directly.
 
-Sigmoid improves probability quality for the evaluated split, but calibration has not yet been repeated across seeds and removal rates. Isotonic may require more calibration data, and alternative classifiers have not been compared. The calibrated model is currently an analysis component and is not yet integrated into model persistence or the production solver. Cell-level metrics also remain distinct from complete-puzzle performance.
+Repeated evaluation shows that Sigmoid reliably improves raw probability quality but is not uniformly beneficial after candidate masking. A single global calibration strategy is therefore not justified for the solver. Isotonic may require more calibration data, and alternative classifiers have not been compared. Calibrated models remain analysis components and are not integrated into persistence or the production solver. Cell-level metrics also remain distinct from complete-puzzle performance.

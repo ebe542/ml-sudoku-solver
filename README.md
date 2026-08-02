@@ -248,6 +248,16 @@ Compares the full 118-feature Random Forest with Sigmoid and Isotonic probabilit
 
 In the current experiment, Sigmoid calibration reduces raw expected calibration error from 0.2963 to 0.0492 and raw log loss from 1.1521 to 0.7818. After candidate constraints, it reaches an expected calibration error of 0.0518 and a log loss of 0.7134 without materially changing the model's ranking performance.
 
+### Repeat Probability Calibration
+
+```bash
+python scripts/evaluate_repeated_probability_calibration.py
+```
+
+Repeats Raw, Sigmoid, and Isotonic probability evaluation across three random seeds and removal rates from 0.50 to 0.65. Every run uses separate datasets for model training, calibration, and final evaluation.
+
+Sigmoid consistently improves raw probability quality, but its benefit does not always survive candidate masking. After Sudoku constraints, the uncalibrated model has better ECE and log loss at removal rates of 0.60 and 0.65. Calibration therefore is not enabled globally in the solver.
+
 ## Hybrid Solver
 
 `HybridSudokuSolver` solves complete puzzles while preserving Sudoku validity. It selects constrained cells first, ranks ambiguous candidates with the trained Random Forest, and uses backtracking when a prediction leads to a dead end.

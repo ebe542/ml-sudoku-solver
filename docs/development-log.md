@@ -2634,3 +2634,158 @@ Repeat the calibration comparison across random seeds and removal rates. If Sigm
 ### Conclusion
 
 Post-training Sigmoid calibration corrects most of the Random Forest's raw underconfidence without materially changing its strong candidate ranking. Sudoku candidate constraints already supply much of the probability improvement, but Sigmoid produces the most reliable overall probabilities in this controlled experiment.
+
+---
+## Commit 31 - Repeated Probability-Calibration Analysis
+
+**Commit:** `feat: add repeated probability calibration`
+
+### Objective
+
+Determine whether the calibration conclusions from Commit 30 remain stable across independently generated datasets and harder removal rates.
+
+### Motivation
+
+The first calibration experiment suggested that Sigmoid was the strongest overall method. That conclusion was based on one training seed, one calibration seed, one evaluation seed, and removal rate 0.50. Repetition is required before calibration can be recommended for the solver pipeline.
+
+### Experimental Design
+
+For each run seed and removal rate, the experiment generates separate training, calibration, and evaluation collections. The Random Forest is fitted only on training data, the calibrators see only calibration data, and all reported metrics come from final evaluation data.
+
+```text
+3 removal rates x 3 run seeds
+                 =
+9 independently trained Random Forests
+                 +
+9 Sigmoid calibrators
+                 +
+9 Isotonic calibrators
+```
+
+The run seeds are 42, 123, and 202. Training uses the run seed, calibration uses the run seed plus 10,000, and evaluation uses the run seed plus 20,000.
+
+### Implemented
+
+- Added repeated calibration result structures.
+- Added independent dataset generation for all three experimental stages.
+- Added Raw, Sigmoid, and Isotonic aggregation per removal rate.
+- Added summary statistics for raw and candidate-constrained metrics.
+- Added Top-k, MRR, confidence, ECE, and log-loss aggregation.
+- Added validation and integration tests.
+- Added a command-line experiment with four result tables.
+- Added a uniform valid-candidate fallback for zero probability mass.
+
+### Zero-Mass Fallback
+
+During the small integration test, Isotonic assigned zero probability to every valid candidate for one sample. Candidate masking then produced a zero row sum, and direct normalization generated `NaN` values.
+
+The constraint function now replaces zero-mass rows with equal weights for every valid candidate before normalization. This fallback is deterministic, remains Sudoku-valid, and communicates that the model has no usable preference.
+
+### Usage
+
+Run the full experiment from the project root:
+
+```bash
+python scripts/evaluate_repeated_probability_calibration.py
+```
+
+### Evaluation Configuration
+
+```text
+Removal rates: 0.50, 0.60, 0.65
+Run seeds: 42, 123, 202
+Runs per removal rate: 3
+Solutions per generated dataset: 100
+Training/test split: 80% / 20%
+Random Forest estimators: 100
+```
+
+### Ranking Results
+
+Calibration changes ranking only slightly. Mean raw Top-1 accuracy for Raw, Sigmoid, and Isotonic respectively was:
+
+| Removal rate | Raw | Sigmoid | Isotonic |
+|---:|---:|---:|---:|
+| 50% | 66.67% | 66.58% | 66.50% |
+| 60% | 47.95% | 48.54% | 46.67% |
+| 65% | 39.65% | 39.90% | 39.20% |
+
+Candidate constraints leave these Top-1 values unchanged. At 65% removal, constrained Top-3 accuracy remains 86.12% for Raw, 86.28% for Sigmoid, and 86.09% for Isotonic.
+
+Top-1 population standard deviations remain below two percentage points for every method and removal rate. The small differences between calibration methods are therefore also small relative to their overall prediction error.
+
+### Raw Probability Quality
+
+| Removal rate | Method | Confidence | ECE | ECE SD | Log loss |
+|---:|---|---:|---:|---:|---:|
+| 50% | Raw | 35.58% | 0.3122 | 0.0036 | 1.1507 |
+| 50% | Sigmoid | 63.73% | 0.0538 | 0.0142 | 0.7584 |
+| 50% | Isotonic | 64.18% | 0.0403 | 0.0112 | 1.0814 |
+| 60% | Raw | 28.54% | 0.1942 | 0.0058 | 1.4296 |
+| 60% | Sigmoid | 49.18% | 0.0402 | 0.0052 | 1.1697 |
+| 60% | Isotonic | 48.41% | 0.0309 | 0.0099 | 1.3689 |
+| 65% | Raw | 26.05% | 0.1360 | 0.0047 | 1.5637 |
+| 65% | Sigmoid | 43.23% | 0.0462 | 0.0133 | 1.3903 |
+| 65% | Isotonic | 41.59% | 0.0316 | 0.0070 | 1.5319 |
+
+Sigmoid reduces raw log loss at all removal rates. The relative reductions are approximately 34.1% at 50%, 18.2% at 60%, and 11.1% at 65%. It also greatly reduces the raw model's underconfidence.
+
+### Candidate-Constrained Probability Quality
+
+| Removal rate | Method | Confidence | ECE | ECE SD | Log loss |
+|---:|---|---:|---:|---:|---:|
+| 50% | Raw | 57.47% | 0.0928 | 0.0030 | 0.7151 |
+| 50% | Sigmoid | 68.38% | 0.0350 | 0.0108 | 0.6907 |
+| 50% | Isotonic | 64.62% | 0.0364 | 0.0088 | 1.0761 |
+| 60% | Raw | 44.74% | 0.0414 | 0.0032 | 1.0271 |
+| 60% | Sigmoid | 55.50% | 0.0699 | 0.0080 | 1.0557 |
+| 60% | Isotonic | 50.04% | 0.0364 | 0.0117 | 1.3443 |
+| 65% | Raw | 38.84% | 0.0156 | 0.0063 | 1.2022 |
+| 65% | Sigmoid | 49.65% | 0.1002 | 0.0102 | 1.2586 |
+| 65% | Isotonic | 43.85% | 0.0474 | 0.0102 | 1.4893 |
+
+### Interpretation
+
+Sigmoid is consistently useful when raw Random-Forest probabilities are consumed directly. It reduces ECE and log loss at every evaluated removal rate, although its relative benefit decreases as difficulty increases.
+
+The solver-oriented candidate-constrained result is different. Sigmoid improves ECE and log loss at 50% removal but worsens both metrics at 60% and 65%. Candidate masking is a nonlinear post-processing step that removes illegal classes and renormalizes the remaining probabilities, so probabilities calibrated before the mask do not necessarily remain calibrated afterward.
+
+At 65% removal, Sigmoid candidate-constrained confidence is 49.65% while Top-1 accuracy is only 39.90%. The combined pipeline is overconfident. The uncalibrated constrained model reaches only 0.0156 ECE and has lower log loss.
+
+Isotonic sometimes produces the lowest raw ECE but consistently has worse log loss than Sigmoid. ECE summarizes confidence bins and can hide rare confident errors, while log loss penalizes them strongly. Both metrics are therefore necessary.
+
+The repeated experiment overturns the overly broad single-run recommendation from Commit 30. Sigmoid should not be enabled globally in the Hybrid solver. Calibration has almost no effect on ranking and its probability benefit after candidate constraints depends on removal rate.
+
+### Testing
+
+The tests cover:
+
+- all three calibration methods,
+- raw and constrained metric summaries,
+- removal-rate grouping,
+- random-seed tracking,
+- empty rate and seed validation,
+- invalid removal rates,
+- zero-mass candidate fallback,
+- finite normalized fallback probabilities.
+
+Result:
+
+`200 passed`
+
+### Limitations
+
+- Three seeds remain a limited empirical sample.
+- Removal rate is only a proxy for difficulty.
+- Calibration and evaluation distributions share the same removal rate within a run.
+- ECE depends on the selected bin count.
+- No per-class reliability analysis is included.
+- Complete-solver behavior is not directly evaluated.
+
+### Next Step
+
+Compare alternative classifiers on the same solution-level splits and 118-feature representation. This will determine whether the Random Forest remains the best tabular baseline for ranking and calibrated probability quality.
+
+### Conclusion
+
+Sigmoid reliably improves raw Random-Forest probabilities, but candidate masking changes the calibration problem. For harder puzzles, the uncalibrated constrained model is better calibrated than either post-trained alternative. Repeated evaluation therefore supports retaining raw candidate ranking in the solver while treating calibration as an analysis tool rather than a universal pipeline improvement.

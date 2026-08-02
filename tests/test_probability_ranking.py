@@ -158,3 +158,24 @@ def test_candidate_constraints_can_correct_raw_top_prediction() -> None:
     assert raw_result.top_1_accuracy == pytest.approx(0.0)
     assert constrained_result.top_1_accuracy == pytest.approx(1.0)
     assert constrained_result.mean_confidence == pytest.approx(0.2 / 0.3)
+
+def test_candidate_constraints_use_uniform_zero_mass_fallback() -> None:
+    probabilities = np.array(
+        [[1.0, 0.0, 0.0]]
+    )
+    classes = np.array([1, 2, 3])
+
+    X = np.zeros((1, 91))
+    X[0, 83] = 1.0
+    X[0, 84] = 1.0
+
+    result = apply_candidate_constraints(
+        probabilities,
+        classes,
+        X,
+    )
+
+    assert result[0, 0] == pytest.approx(0.0)
+    assert result[0, 1] == pytest.approx(0.5)
+    assert result[0, 2] == pytest.approx(0.5)
+    assert np.sum(result[0]) == pytest.approx(1.0)
