@@ -1,10 +1,11 @@
+from dataclasses import dataclass
+
 import numpy as np
 
 from sudoku_ml.grid import SudokuGrid
-from sudoku_ml.model.random_forest import SudokuRandomForest
+from sudoku_ml.model.protocol import SudokuProbabilityModel
 from sudoku_ml.preprocessing.constraints import get_candidates
 from sudoku_ml.preprocessing.features import create_feature_vector
-from dataclasses import dataclass
 
 
 @dataclass
@@ -20,7 +21,7 @@ class SolverStats:
 class HybridSudokuSolver:
     """Solve Sudoku grids using constraints and ML-guided backtracking."""
 
-    def __init__(self, model: SudokuRandomForest) -> None:
+    def __init__(self, model: SudokuProbabilityModel) -> None:
         self.model = model
         self.stats = SolverStats()
 

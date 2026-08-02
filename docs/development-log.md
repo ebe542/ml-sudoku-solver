@@ -3113,3 +3113,156 @@ Introduce a general solver probability-model interface and evaluate Random Fores
 ### Conclusion
 
 Histogram Gradient Boosting confirms the strongest cell-level ranking and log loss across seeds and removal rates. Logistic Regression offers exceptional inference speed and competitive rankings, while Random Forest and Extra Trees provide better constrained calibration. The next decision must be based on end-to-end solver behavior rather than cell-level metrics alone.
+
+---
+## Commit 34 - Classifier Comparison in the Hybrid Solver
+
+**Commit:** `feat: compare classifiers in hybrid solver`
+
+### Objective
+
+Measure whether cell-level classifier differences translate into complete Hybrid solver quality, search effort, and end-to-end runtime.
+
+### Motivation
+
+Histogram Gradient Boosting produced the strongest cell-level Top-1 accuracy, MRR, and log loss, while Logistic Regression had the fastest batch inference. Neither result directly identifies the best solver model because the Hybrid solver queries only selected ambiguous cells and can repair ranking mistakes through backtracking.
+
+### General Model Interface
+
+The solver constructor previously declared a concrete `SudokuRandomForest` dependency even though its implementation used only two model capabilities:
+
+```text
+classes
+predict_probabilities(X)
+```
+
+`SudokuProbabilityModel` now defines these requirements as a runtime-checkable protocol. `NamedSudokuProbabilityModel` adds a model name for comparison output. The change makes the structural dependency explicit and permits all compatible classifier adapters without changing solver logic.
+
+### Controlled Solver Comparison
+
+For every removal rate, all classifiers use the same:
+
+- solution-level training split,
+- 118-feature representation,
+- random seed where supported,
+- unique-solution evaluation puzzles,
+- expected ground-truth solutions,
+- MRV cell selection,
+- candidate validation,
+- recursive backtracking implementation.
+
+The only experimental difference is the probability model used to rank valid candidates.
+
+### Implemented
+
+- Added `SudokuProbabilityModel`.
+- Added `NamedSudokuProbabilityModel` for reports.
+- Removed the Hybrid solver's type coupling to Random Forest.
+- Added reusable comparison of multiple models on identical puzzles.
+- Added per-removal-rate model training and unique-puzzle evaluation.
+- Reused exact match, validity, runtime, and solver statistics.
+- Added model-protocol and comparison tests.
+- Added an executable end-to-end experiment.
+
+### Usage
+
+Run the experiment from the project root:
+
+```bash
+python scripts/evaluate_solver_models.py
+```
+
+### Evaluation Configuration
+
+```text
+Removal rates: 0.50, 0.60, 0.65
+Training solutions per rate: 100
+Evaluation puzzles per rate: 20
+Training seed: 42
+Evaluation seed: 123
+Feature count: 118
+Estimators or boosting iterations: 100
+Evaluation puzzles: unique solution
+```
+
+### Solution Quality and Runtime
+
+| Removal | Model | Exact match | Valid | Runtime per puzzle |
+|---:|---|---:|---:|---:|
+| 50% | Logistic Regression | 100.00% | 100.00% | 0.74 ms |
+| 50% | Random Forest | 100.00% | 100.00% | 0.72 ms |
+| 50% | Extra Trees | 100.00% | 100.00% | 0.72 ms |
+| 50% | Histogram Gradient Boosting | 100.00% | 100.00% | 0.71 ms |
+| 60% | Logistic Regression | 100.00% | 100.00% | 2.18 ms |
+| 60% | Random Forest | 100.00% | 100.00% | 19.81 ms |
+| 60% | Extra Trees | 100.00% | 100.00% | 18.21 ms |
+| 60% | Histogram Gradient Boosting | 100.00% | 100.00% | 10.49 ms |
+| 65% | Logistic Regression | 100.00% | 100.00% | 4.49 ms |
+| 65% | Random Forest | 100.00% | 100.00% | 62.65 ms |
+| 65% | Extra Trees | 100.00% | 100.00% | 56.41 ms |
+| 65% | Histogram Gradient Boosting | 100.00% | 100.00% | 27.56 ms |
+
+Backtracking allows every model-guided solver to reproduce every unique ground-truth solution. Complete solution quality therefore does not distinguish the classifiers in this experiment.
+
+At 50% removal, no puzzle requires an ML decision. The nearly identical runtimes only measure common deterministic solver behavior and provide no evidence about classifier suitability.
+
+At 60%, Logistic Regression is approximately 9.1 times faster than Random Forest. At 65%, it is approximately 14.0 times faster than Random Forest and 6.1 times faster than Histogram Gradient Boosting.
+
+### Search Effort
+
+| Removal | Model | Deterministic steps | ML decisions | Backtracks |
+|---:|---|---:|---:|---:|
+| 50% | Logistic Regression | 40.00 | 0.00 | 0.00 |
+| 50% | Random Forest | 40.00 | 0.00 | 0.00 |
+| 50% | Extra Trees | 40.00 | 0.00 | 0.00 |
+| 50% | Histogram Gradient Boosting | 40.00 | 0.00 | 0.00 |
+| 60% | Logistic Regression | 57.70 | 1.10 | 11.55 |
+| 60% | Random Forest | 58.00 | 1.10 | 11.80 |
+| 60% | Extra Trees | 58.25 | 1.10 | 12.05 |
+| 60% | Histogram Gradient Boosting | 56.90 | 1.20 | 10.85 |
+| 65% | Logistic Regression | 82.70 | 4.50 | 38.55 |
+| 65% | Random Forest | 84.15 | 3.95 | 38.85 |
+| 65% | Extra Trees | 74.90 | 3.55 | 28.45 |
+| 65% | Histogram Gradient Boosting | 79.90 | 3.50 | 33.55 |
+
+Histogram Gradient Boosting has the fewest backtracks at 60%, reducing the Random Forest result by approximately 8.1%. Extra Trees leads at 65%, reducing Random Forest backtracking by approximately 26.8%. The best general cell classifier therefore does not consistently produce the best solver search order.
+
+The discrepancy is caused by evaluation distribution. Cell-level ranking evaluates every removed cell in its original puzzle, while the solver model sees only ambiguous cells selected during evolving MRV-guided search states.
+
+Logistic Regression performs a similar amount of search to Random Forest but its much cheaper inference dominates end-to-end runtime. It is the strongest practical model in this experiment when speed is prioritized.
+
+### Testing
+
+The tests cover:
+
+- structural model-protocol compatibility,
+- rejection of incomplete protocol implementations,
+- identical puzzle use across named models,
+- independent solver statistics per model,
+- exact ground-truth matching,
+- mismatched ground-truth validation,
+- all four trained classifier adapters,
+- per-removal-rate evaluation,
+- empty and invalid removal rates,
+- invalid evaluation puzzle counts.
+
+Result:
+
+`223 passed`
+
+### Limitations
+
+- One training seed and one evaluation seed are used.
+- Only 20 puzzles are evaluated per removal rate.
+- No classical-solver baseline is included in this experiment.
+- Model-specific hyperparameters are not tuned.
+- The alternative models are not persisted or available through the CLI.
+- Solver states differ from the static cell-level training distribution.
+
+### Next Step
+
+Repeat the end-to-end solver comparison across several training and evaluation seeds and include the classical solver as a model-free runtime and search baseline. This will determine whether Logistic Regression remains the best practical Hybrid model and whether any ML model consistently improves search effort.
+
+### Conclusion
+
+Cell-level superiority does not directly determine solver superiority. Histogram Gradient Boosting remains the strongest general cell classifier, but Logistic Regression produces the fastest complete Hybrid solver by a large margin. Backtracking equalizes solution quality, while inference cost and the ranking of solver-specific ambiguous states determine practical performance.

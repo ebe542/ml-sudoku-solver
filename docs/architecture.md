@@ -925,6 +925,90 @@ Gradient Boosting training is approximately 13 to 20 times slower than Random Fo
 
 Random Forest and Extra Trees remain better calibrated after candidate masking, while Gradient Boosting has the lowest log loss. Model selection therefore depends on whether ranking, probability calibration, training cost, or inference cost is prioritized.
 
+### Probability-Model Protocol
+
+The Hybrid solver depends on model behavior rather than a concrete classifier. `SudokuProbabilityModel` defines the structural interface required for candidate ranking:
+
+```text
+SudokuProbabilityModel
+    |
+    +-- classes
+    |
+    +-- predict_probabilities(X)
+```
+
+`NamedSudokuProbabilityModel` additionally requires a `name` attribute for comparison reports. Both are Python protocols, so compatible classes do not need explicit inheritance.
+
+```text
+SudokuRandomForest --------+
+ProbabilityModelAdapter ---+--> SudokuProbabilityModel
+CalibratedProbabilityModel +
+                                  |
+                                  v
+                         HybridSudokuSolver
+```
+
+This removes the solver's type-level dependency on `SudokuRandomForest` without changing its runtime behavior. Candidate validity, feature generation, ranking, and backtracking remain unchanged.
+
+### Classifier Comparison in the Hybrid Solver
+
+The end-to-end comparison trains all four classifiers on identical data and evaluates a fresh `HybridSudokuSolver` for each model on identical uniquely solvable puzzles. `compare_models_in_hybrid_solver()` reuses the established `evaluate_solver()` logic, including validity and exact ground-truth checks.
+
+```text
+Shared training split
+        |
+        v
+Train four classifiers
+        |
+        v
+Shared unique-solution puzzles
+        |
+   +----+----+----+----+
+   |         |         |
+   v         v         v
+Hybrid     Hybrid     Hybrid
+with       with       with
+different probability models
+   |         |         |
+   +----+----+----+----+
+        |
+        v
+Exact match, runtime, decisions, backtracks
+```
+
+Every model-guided solver achieved 100% exact match and 100% validity at all evaluated removal rates. At 50% removal, all puzzles were solved through 40 deterministic placements per puzzle with no ML decisions, so model differences were not exercised.
+
+End-to-end runtime means were:
+
+| Removal | Logistic Regression | Random Forest | Extra Trees | Histogram Gradient Boosting |
+|---:|---:|---:|---:|---:|
+| 50% | 0.74 ms | 0.72 ms | 0.72 ms | 0.71 ms |
+| 60% | 2.18 ms | 19.81 ms | 18.21 ms | 10.49 ms |
+| 65% | 4.49 ms | 62.65 ms | 56.41 ms | 27.56 ms |
+
+Search-effort means were:
+
+| Removal | Model | Deterministic steps | ML decisions | Backtracks |
+|---:|---|---:|---:|---:|
+| 50% | Logistic Regression | 40.00 | 0.00 | 0.00 |
+| 50% | Random Forest | 40.00 | 0.00 | 0.00 |
+| 50% | Extra Trees | 40.00 | 0.00 | 0.00 |
+| 50% | Histogram Gradient Boosting | 40.00 | 0.00 | 0.00 |
+| 60% | Logistic Regression | 57.70 | 1.10 | 11.55 |
+| 60% | Random Forest | 58.00 | 1.10 | 11.80 |
+| 60% | Extra Trees | 58.25 | 1.10 | 12.05 |
+| 60% | Histogram Gradient Boosting | 56.90 | 1.20 | 10.85 |
+| 65% | Logistic Regression | 82.70 | 4.50 | 38.55 |
+| 65% | Random Forest | 84.15 | 3.95 | 38.85 |
+| 65% | Extra Trees | 74.90 | 3.55 | 28.45 |
+| 65% | Histogram Gradient Boosting | 79.90 | 3.50 | 33.55 |
+
+Histogram Gradient Boosting has the lowest backtracking at 60%, while Extra Trees reduces backtracking most at 65%. Its superior general cell-level Top-1 accuracy does not translate into uniformly superior solver search because the solver queries only ambiguous cells selected by minimum remaining values, not every removed cell represented in the classification test set.
+
+Logistic Regression has similar or greater search effort but is approximately nine times faster than Random Forest at 60% removal and fourteen times faster at 65%. Its inexpensive probability inference more than compensates for additional search. It is therefore the strongest current candidate when end-to-end runtime is prioritized.
+
+Deterministic-step counts can exceed the number of initially empty cells because forced placements on failed search branches are counted again after backtracking.
+
 ## Current Limitation
 
 The current Random Forest cannot reliably solve ambiguous puzzles without correction: Greedy exact match falls to 55% at 60% removal and 25% at 65% removal. Its 66.88% Top-1 accuracy is useful for search ordering but is insufficient for an unrecoverable decision sequence. The model remains a cell-level classifier rather than an end-to-end grid model.
@@ -933,4 +1017,6 @@ The repeated ablation covers three seeds and three removal rates, but this is st
 
 Repeated evaluation shows that Sigmoid reliably improves raw probability quality but is not uniformly beneficial after candidate masking. A single global calibration strategy is therefore not justified for the solver.
 
-Histogram Gradient Boosting has now confirmed its cell-level ranking advantage across three seeds and removal rates, but complete-solver behavior has not yet been measured. Batch inference does not capture repeated one-cell predictions, feature recomputation, backtracking, or total puzzle runtime. The alternative models also lack the established persistence and CLI integration of `SudokuRandomForest`. The production solver therefore continues to use Random Forest until an end-to-end comparison is complete.
+The first end-to-end comparison shows that Logistic Regression is the fastest model-guided solver, but it uses one training seed, one evaluation seed, and 20 puzzles per removal rate. The model-dependent search-effort ordering changes with removal rate, so repeated end-to-end evaluation is still required.
+
+Alternative models also lack the established persistence and CLI integration of `SudokuRandomForest`. The production solver therefore continues to use Random Forest until solver results are repeated and model lifecycle support is generalized.

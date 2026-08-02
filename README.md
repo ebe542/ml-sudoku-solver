@@ -278,6 +278,16 @@ Repeats the four-classifier comparison across three seeds and removal rates of 0
 
 Histogram Gradient Boosting consistently provides the best Top-1 accuracy, MRR, and log loss. Logistic Regression is the fastest inference model and has slightly better Top-3 accuracy at harder removal rates, while Random Forest and Extra Trees provide better candidate-constrained calibration.
 
+### Compare Models in the Hybrid Solver
+
+```bash
+python scripts/evaluate_solver_models.py
+```
+
+Trains all four classifiers and evaluates them inside identical Hybrid solvers on the same unique-solution puzzles. The report measures exact ground-truth match, validity, end-to-end puzzle runtime, deterministic steps, ML decisions, and backtracking.
+
+All models reach 100% exact match through backtracking. Logistic Regression is the fastest solver model, averaging 4.49 ms per puzzle at 65% removal compared with 62.65 ms for Random Forest. Histogram Gradient Boosting has the best cell-level ranking but does not consistently produce the fewest solver backtracks.
+
 ## Hybrid Solver
 
 `HybridSudokuSolver` solves complete puzzles while preserving Sudoku validity. It selects constrained cells first, ranks ambiguous candidates with the trained Random Forest, and uses backtracking when a prediction leads to a dead end.
