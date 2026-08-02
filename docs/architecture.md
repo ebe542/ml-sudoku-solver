@@ -1019,7 +1019,7 @@ Repeated evaluation shows that Sigmoid reliably improves raw probability quality
 
 The first end-to-end comparison shows that Logistic Regression is the fastest model-guided solver, but it uses one training seed, one evaluation seed, and 20 puzzles per removal rate. The model-dependent search-effort ordering changes with removal rate, so repeated end-to-end evaluation is still required.
 
-`SudokuHistogramGradientBoosting` now provides the same training, prediction, probability, evaluation, and persistence operations as `SudokuRandomForest`. CLI model selection is not yet available, so the command-line solver continues to load Random Forest by default.
+`SudokuHistogramGradientBoosting` now provides the same training, prediction, probability, evaluation, and persistence operations as `SudokuRandomForest`. The CLI can select either persistent model, while Random Forest remains the default.
 
 ## Persistent Histogram Gradient Boosting Model
 
@@ -1045,4 +1045,24 @@ The wrapper owns a scikit-learn `HistGradientBoostingClassifier`. Model files co
 
 The training script uses 100 generated solutions, a solution-level 80/20 split, 50% removal, seed 42, the complete 118-feature representation, and 100 boosting iterations. The resulting artifact is written to `models/sudoku_histogram_gradient_boosting.joblib` and remains excluded from Git.
 
-The Random Forest remains the CLI default. Keeping model persistence separate from CLI selection allows the new lifecycle behavior to be tested independently before command-line configuration is generalized.
+The Random Forest remains the CLI default, but model type and model path can now be selected independently.
+
+## CLI Model Selection
+
+The CLI separates the logical model type from the serialized model path:
+
+```text
+--model-type
+    |
+    +-- random-forest
+    |       |
+    |       +--> SudokuRandomForest.load(...)
+    |
+    +-- histogram-gradient-boosting
+            |
+            +--> SudokuHistogramGradientBoosting.load(...)
+```
+
+If `--model` is omitted, the selected model type determines the default artifact path. An explicit path overrides only the location, not the expected estimator type. Each wrapper validates the loaded estimator, so selecting Histogram Gradient Boosting while passing a Random Forest file produces a clear command-line error.
+
+The classical solver path bypasses model loading entirely. This preserves operation without a trained model and keeps classical candidate ordering independent of the model-selection options.

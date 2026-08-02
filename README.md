@@ -133,7 +133,7 @@ model = SudokuHistogramGradientBoosting.load(
 )
 ```
 
-Both wrappers support training, digit prediction, class probabilities, evaluation, persistence, and access to the learned digit classes. The command-line solver continues to load the Random Forest until model selection is added explicitly.
+Both wrappers support training, digit prediction, class probabilities, evaluation, persistence, and access to the learned digit classes. The command-line solver can load either model explicitly.
 
 Only load joblib files from trusted sources. Deserializing an untrusted file can execute arbitrary code.
 
@@ -158,6 +158,23 @@ To load a model from a different location:
 ```bash
 sudoku-ml --model models/sudoku_random_forest.joblib "530070000600195000098000060800060003400803001700020006060000280000419005000080079"
 ```
+
+Random Forest is the default model type. Select the persistent Histogram Gradient Boosting model with:
+
+```bash
+sudoku-ml \
+  --model-type histogram-gradient-boosting \
+  "530070000600195000098000060800060003400803001700020006060000280000419005000080079"
+```
+
+Without `--model`, the CLI chooses the default file for the selected type:
+
+```text
+random-forest               -> models/sudoku_random_forest.joblib
+histogram-gradient-boosting -> models/sudoku_histogram_gradient_boosting.joblib
+```
+
+Use `--model` together with `--model-type` to load the selected model from another location. The CLI verifies that the serialized estimator matches the selected type.
 
 Use the classical solver without a model:
 

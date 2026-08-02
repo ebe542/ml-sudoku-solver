@@ -3374,3 +3374,107 @@ Generalize CLI model loading so the user can explicitly select Random Forest or 
 ### Conclusion
 
 Histogram Gradient Boosting now has a complete model lifecycle within the project. It can be trained once, persisted, restored, and consumed through the probability interface required by the Hybrid solver. Random Forest remains the command-line default until model selection is introduced separately.
+
+---
+## Commit 36 - CLI Model Selection
+
+**Commit:** `feat: add CLI model selection`
+
+### Objective
+
+Allow the command-line Hybrid solver to use either the persistent Random Forest or Histogram Gradient Boosting model without changing application code.
+
+### Motivation
+
+Commit 35 gave Histogram Gradient Boosting a complete persistence lifecycle, but the CLI still loaded `SudokuRandomForest` directly. Explicit model selection is required to compare saved models on user-provided puzzles and to keep the command-line interface aligned with the solver's general probability-model protocol.
+
+### CLI Design
+
+The new `--model-type` option accepts:
+
+```text
+random-forest
+histogram-gradient-boosting
+```
+
+Random Forest remains the default for backward compatibility. The optional `--model` argument specifies only the artifact location. If it is omitted, the CLI resolves the default path from the selected model type.
+
+```text
+random-forest               -> models/sudoku_random_forest.joblib
+histogram-gradient-boosting -> models/sudoku_histogram_gradient_boosting.joblib
+```
+
+### Implemented
+
+- Added explicit CLI model-type choices.
+- Added model-specific default artifact paths.
+- Added centralized model loading through the project wrappers.
+- Added selected-model information to solver statistics.
+- Preserved Random Forest as the default.
+- Preserved the model-free classical solver mode.
+- Added clear errors for unknown types, missing files, and estimator mismatches.
+
+### Usage
+
+Use the default Random Forest:
+
+```bash
+sudoku-ml "<81-cell-puzzle>"
+```
+
+Use Histogram Gradient Boosting from its default location:
+
+```bash
+sudoku-ml \
+  --model-type histogram-gradient-boosting \
+  "<81-cell-puzzle>"
+```
+
+Use an explicit Histogram Gradient Boosting artifact:
+
+```bash
+sudoku-ml \
+  --model-type histogram-gradient-boosting \
+  --model models/sudoku_histogram_gradient_boosting.joblib \
+  "<81-cell-puzzle>"
+```
+
+The output identifies the selected solver model, for example:
+
+```text
+Solver:              hybrid ML-guided (Histogram Gradient Boosting)
+```
+
+### Testing
+
+The CLI tests now cover:
+
+- solving with a saved Random Forest,
+- solving with saved Histogram Gradient Boosting,
+- selected-model output,
+- rejection of a mismatched estimator file,
+- rejection of an unknown model type,
+- all existing puzzle, file-input, classical, help, and version behavior.
+
+Results:
+
+```text
+CLI tests: 18 passed
+Full suite: 231 passed
+```
+
+### Limitations
+
+- Only the two persistent model wrappers are selectable.
+- Logistic Regression and Extra Trees remain comparison-only adapters.
+- The CLI does not train a missing model automatically.
+- Model artifacts must remain compatible with the installed scikit-learn version.
+- Selecting a stronger cell classifier does not guarantee faster complete solving.
+
+### Next Step
+
+Build an explicit model-only solving experiment that removes recursive backtracking and measures how long each model can maintain a correct sequence of Sudoku decisions.
+
+### Conclusion
+
+The command-line application is no longer coupled to one classifier. Both persistent project models can now guide the same Hybrid solver through a stable, validated interface, while the classical solver remains available without any model artifact.

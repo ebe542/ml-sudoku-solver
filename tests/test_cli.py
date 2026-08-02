@@ -5,6 +5,9 @@ import pytest
 
 from sudoku_ml.cli import format_grid, main, parse_grid
 from sudoku_ml.data.split import create_train_test_split
+from sudoku_ml.model.histogram_gradient_boosting import (
+    SudokuHistogramGradientBoosting,
+)
 from sudoku_ml.model.random_forest import SudokuRandomForest
 
 PUZZLE_TEXT = (
@@ -107,12 +110,106 @@ def test_main_solves_puzzle_with_saved_model(
     assert exit_code == 0
     assert "Input" in output
     assert "Solution" in output
-    assert "Solver:              hybrid ML-guided" in output
+    assert (
+        "Solver:              hybrid ML-guided (Random Forest)"
+        in output
+    )
     assert "5 3 4 | 6 7 8 | 9 1 2" in output
     assert "Deterministic steps: 51" in output
     assert "ML decisions:        0" in output
     assert "Branching decisions: 0" in output
     assert "Backtracks:          0" in output
+
+
+def test_main_solves_puzzle_with_histogram_gradient_boosting(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    data = create_train_test_split(
+        num_solutions=20,
+        random_seed=42,
+    )
+
+    model = SudokuHistogramGradientBoosting(
+        max_iter=20,
+        random_seed=42,
+    )
+    model.fit(data)
+
+    model_path = tmp_path / "histogram_gradient_boosting.joblib"
+    model.save(model_path)
+
+    exit_code = main(
+        [
+            PUZZLE_TEXT,
+            "--model-type",
+            "histogram-gradient-boosting",
+            "--model",
+            str(model_path),
+        ]
+    )
+
+    output = capsys.readouterr().out
+
+    assert exit_code == 0
+    assert (
+        "Solver:              hybrid ML-guided "
+        "(Histogram Gradient Boosting)"
+        in output
+    )
+    assert "5 3 4 | 6 7 8 | 9 1 2" in output
+
+
+def test_main_rejects_model_type_mismatch(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    data = create_train_test_split(
+        num_solutions=20,
+        random_seed=42,
+    )
+    model = SudokuRandomForest(
+        n_estimators=20,
+        random_seed=42,
+    )
+    model.fit(data)
+
+    model_path = tmp_path / "random_forest.joblib"
+    model.save(model_path)
+
+    with pytest.raises(SystemExit) as error:
+        main(
+            [
+                PUZZLE_TEXT,
+                "--model-type",
+                "histogram-gradient-boosting",
+                "--model",
+                str(model_path),
+            ]
+        )
+
+    captured = capsys.readouterr()
+
+    assert error.value.code == 2
+    assert "HistGradientBoostingClassifier" in captured.err
+
+
+def test_main_rejects_unknown_model_type(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    with pytest.raises(SystemExit) as error:
+        main(
+            [
+                PUZZLE_TEXT,
+                "--model-type",
+                "unknown",
+            ]
+        )
+
+    captured = capsys.readouterr()
+
+    assert error.value.code == 2
+    assert "invalid choice" in captured.err
 
 def test_main_rejects_invalid_puzzle(capsys: pytest.CaptureFixture[str]) -> None:
     with pytest.raises(SystemExit) as error:

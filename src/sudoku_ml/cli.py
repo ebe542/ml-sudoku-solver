@@ -5,11 +5,31 @@ from pathlib import Path
 import numpy as np
 
 from sudoku_ml.grid import SudokuGrid
+from sudoku_ml.model.histogram_gradient_boosting import (
+    SudokuHistogramGradientBoosting,
+)
+from sudoku_ml.model.protocol import SudokuProbabilityModel
 from sudoku_ml.model.random_forest import SudokuRandomForest
 from sudoku_ml.solver import ClassicalSudokuSolver, HybridSudokuSolver
 
 
 PACKAGE_NAME = "ml-sudoku-solver"
+RANDOM_FOREST = "random-forest"
+HISTOGRAM_GRADIENT_BOOSTING = "histogram-gradient-boosting"
+MODEL_TYPES = (
+    RANDOM_FOREST,
+    HISTOGRAM_GRADIENT_BOOSTING,
+)
+DEFAULT_MODEL_PATHS = {
+    RANDOM_FOREST: Path("models/sudoku_random_forest.joblib"),
+    HISTOGRAM_GRADIENT_BOOSTING: Path(
+        "models/sudoku_histogram_gradient_boosting.joblib"
+    ),
+}
+MODEL_DISPLAY_NAMES = {
+    RANDOM_FOREST: "Random Forest",
+    HISTOGRAM_GRADIENT_BOOSTING: "Histogram Gradient Boosting",
+}
 
 
 def parse_grid(text: str) -> SudokuGrid:
@@ -60,11 +80,6 @@ def format_grid(grid: SudokuGrid) -> str:
 
     return "\n".join(lines)
 
-DEFAULT_MODEL_PATH = Path(
-    "models/sudoku_random_forest.joblib"
-)
-
-
 def get_version() -> str:
     """Return the installed package version or a development fallback."""
     try:
@@ -110,12 +125,22 @@ def create_argument_parser() -> argparse.ArgumentParser:
     )
 
     parser.add_argument(
+        "--model-type",
+        choices=MODEL_TYPES,
+        default=RANDOM_FOREST,
+        help=(
+            "Model type used for ML-guided solving "
+            f"(default: {RANDOM_FOREST})."
+        ),
+    )
+
+    parser.add_argument(
         "--model",
         type=Path,
-        default=DEFAULT_MODEL_PATH,
+        default=None,
         help=(
-            "Path to the saved Random Forest model "
-            f"(default: {DEFAULT_MODEL_PATH})."
+            "Path to a saved model. If omitted, the default path "
+            "for the selected model type is used."
         ),
     )
 
@@ -136,6 +161,23 @@ def read_puzzle_text(
     return puzzle
 
 
+def load_model(
+    model_type: str,
+    model_path: Path | None,
+) -> SudokuProbabilityModel:
+    """Load the selected probability model from disk."""
+    resolved_path = (
+        model_path
+        if model_path is not None
+        else DEFAULT_MODEL_PATHS[model_type]
+    )
+
+    if model_type == RANDOM_FOREST:
+        return SudokuRandomForest.load(resolved_path)
+
+    return SudokuHistogramGradientBoosting.load(resolved_path)
+
+
 def main(arguments: list[str] | None = None) -> int:
     """Run the Sudoku solver command-line interface."""
     parser = create_argument_parser()
@@ -152,11 +194,15 @@ def main(arguments: list[str] | None = None) -> int:
             solver = ClassicalSudokuSolver()
             solver_name = "classical"
         else:
-            model = SudokuRandomForest.load(
-                parsed_arguments.model
+            model = load_model(
+                model_type=parsed_arguments.model_type,
+                model_path=parsed_arguments.model,
             )
             solver = HybridSudokuSolver(model)
-            solver_name = "hybrid ML-guided"
+            solver_name = (
+                "hybrid ML-guided "
+                f"({MODEL_DISPLAY_NAMES[parsed_arguments.model_type]})"
+            )
 
         solution = solver.solve(puzzle)
     except (ValueError, TypeError, OSError) as error:
