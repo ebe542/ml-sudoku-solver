@@ -1066,3 +1066,38 @@ The CLI separates the logical model type from the serialized model path:
 If `--model` is omitted, the selected model type determines the default artifact path. An explicit path overrides only the location, not the expected estimator type. Each wrapper validates the loaded estimator, so selecting Histogram Gradient Boosting while passing a Random Forest file produces a clear command-line error.
 
 The classical solver path bypasses model loading entirely. This preserves operation without a trained model and keeps classical candidate ordering independent of the model-selection options.
+
+## Greedy Model Decision Trace
+
+`GreedyMLSudokuSolver` represents the project's constrained Model-only path. It still uses Sudoku rules to select the most constrained cell and exclude illegal digits, but it permanently accepts the highest-ranked valid candidate and never backtracks.
+
+```text
+Select MRV cell
+      |
+      v
+Determine valid candidates
+      |
+      +-- one candidate ----> deterministic placement
+      |
+      +-- several ----------> model ranking ----> Top-1 placement
+                                                    |
+                                                    v
+                                         append GreedyDecision
+                                                    |
+                                                    v
+                                           never reconsider
+```
+
+Every placement is stored as an immutable `GreedyDecision` containing:
+
+- one-based step number,
+- zero-based row and column,
+- sorted valid candidates,
+- candidates in model-ranked order,
+- selected digit,
+- confidence in the selected ML digit,
+- deterministic or ML-decision classification.
+
+For single-candidate placements, `confidence` is `None` because the digit is selected by Sudoku constraints rather than model inference. For ambiguous placements, confidence is the model's raw probability for the selected valid digit.
+
+The trace is reset before every solving attempt and exposed as an immutable tuple. It contains no rollback events because the Greedy solver performs no backtracking. Comparing the trace with a unique ground-truth solution can therefore locate the first incorrect irreversible choice and determine the rank of the correct digit.

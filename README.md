@@ -247,6 +247,20 @@ python scripts/evaluate_greedy_solver.py
 
 Compares a constraint-aware Greedy ML solver with the Hybrid ML solver on identical unique-solution puzzles. Greedy ML permanently accepts the model's highest-ranked valid candidate and cannot recover from a wrong decision. At removal rates of 0.60 and 0.65, its exact solution rates were 55% and 25%, compared with 100% for the backtracking-enabled hybrid solver.
 
+The Greedy solver records every irreversible placement from its most recent attempt in `decision_trace`. Each entry contains the step, cell position, valid candidates, model ranking, selected digit, selected confidence, and whether the placement required an ML decision. Deterministic single-candidate placements have no model confidence.
+
+```python
+from sudoku_ml.solver import GreedyMLSudokuSolver
+
+solver = GreedyMLSudokuSolver(model)
+solution = solver.solve(puzzle)
+
+for decision in solver.decision_trace:
+    print(decision)
+```
+
+This is the project's current Model-only experiment: Sudoku constraints still reject illegal digits, but no search or backtracking repairs a model mistake.
+
 ### Analyze Model Probability Rankings
 
 ```bash

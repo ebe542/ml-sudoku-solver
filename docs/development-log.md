@@ -3478,3 +3478,101 @@ Build an explicit model-only solving experiment that removes recursive backtrack
 ### Conclusion
 
 The command-line application is no longer coupled to one classifier. Both persistent project models can now guide the same Hybrid solver through a stable, validated interface, while the classical solver remains available without any model artifact.
+
+---
+## Commit 37 - Greedy Model Decision Tracing
+
+**Commit:** `feat: add greedy model decision tracing`
+
+### Objective
+
+Record every irreversible placement made by the backtracking-free Greedy ML solver so later experiments can identify where and why a Model-only solving attempt fails.
+
+### Motivation
+
+The existing `GreedyMLSudokuSolver` already provides the intended Model-only behavior: it uses Sudoku constraints to remove illegal candidates, applies model probabilities when several valid digits remain, and never revises its Top-1 choice. Creating a second solver with the same control flow would duplicate logic without adding information.
+
+The previous evaluation measured only complete success or failure. It could not reveal the first wrong decision, the model's confidence, or whether the correct digit was ranked second or much lower. A structured decision trace supplies the data needed for that analysis.
+
+### Decision Record
+
+Each immutable `GreedyDecision` stores:
+
+```text
+step
+row
+column
+candidates
+ranked_candidates
+selected_digit
+confidence
+is_ml_decision
+```
+
+Rows and columns are zero-based, while the step number is one-based. Candidates are stored both in stable numeric order and in the order used by the solver.
+
+Deterministic single-candidate placements record `confidence=None`. Ambiguous placements record the raw model probability of the selected digit. The probability is descriptive rather than a guarantee that the complete solving path is correct.
+
+### Implemented
+
+- Added immutable `GreedyDecision` records.
+- Added a decision trace to `GreedyMLSudokuSolver`.
+- Recorded deterministic and model-guided placements.
+- Recorded candidate ranking and selected-model confidence.
+- Reset the trace before every solve attempt.
+- Exposed the trace as an immutable tuple.
+- Reused one probability calculation for ranking and confidence.
+- Preserved Hybrid and classical solver behavior.
+
+### Usage
+
+```python
+solver = GreedyMLSudokuSolver(model)
+solution = solver.solve(puzzle)
+
+for decision in solver.decision_trace:
+    print(
+        decision.step,
+        decision.row,
+        decision.column,
+        decision.selected_digit,
+        decision.confidence,
+    )
+```
+
+The trace remains available even when `solve()` returns `None`, allowing failed attempts to be inspected.
+
+### Testing
+
+The new tests verify:
+
+- deterministic placement records,
+- ambiguous model-ranked records,
+- candidate and ranking order,
+- selected confidence,
+- consecutive step numbering,
+- absence of backtracking,
+- trace reset between solving attempts.
+
+Results:
+
+```text
+Focused solver tests: 20 passed
+Full suite: 235 passed
+```
+
+### Limitations
+
+- The trace itself does not know the ground-truth solution.
+- Raw confidence is not candidate-normalized or calibrated.
+- Deterministic placements caused by an earlier wrong choice may still appear locally valid.
+- Only Greedy placements are traced; Hybrid search branches are not recorded.
+- The existing comparison report does not yet aggregate trace information.
+
+### Next Step
+
+Compare each Greedy trace with the unique ground truth. Report the first incorrect placement, correct-digit rank, selected confidence, candidates, and number of correct irreversible decisions before failure for both persistent model types.
+
+### Conclusion
+
+The Model-only experiment is now observable at decision level. Complete failure is no longer a black-box outcome: every permanent choice can be reconstructed and evaluated against the known unique solution without changing the reliable Hybrid solver.
