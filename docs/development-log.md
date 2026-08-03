@@ -4129,3 +4129,172 @@ Compare raw, candidate-normalized, and rank-based Beam path scores. Histogram Gr
 ### Conclusion
 
 Repeated evaluation confirms Beam Search as a useful reliability improvement over Greedy solving, but it does not establish a universally superior classifier. Histogram Gradient Boosting is faster, while Random Forest Beam 4 is slightly more stable at the hardest evaluated rate. Hybrid and classical search remain the only consistently complete approaches.
+
+---
+## Commit 42 - End-to-End Full-Grid Dataset
+
+**Commit:** `feat: add end-to-end Sudoku dataset`
+
+### Objective
+
+Create a leakage-safe dataset for models that receive an incomplete Sudoku grid and predict its complete solution grid rather than one selected cell.
+
+### Motivation
+
+The existing tabular models predict one digit from a 118-feature vector. They depend on explicit candidate features, MRV cell selection, and an external solving strategy. This is useful for candidate ranking but cannot directly answer whether a model can generate a complete Sudoku solution.
+
+The end-to-end phase requires a different supervised-learning representation:
+
+```text
+X: incomplete Sudoku grids, shape (samples, 9, 9)
+y: complete Sudoku grids,   shape (samples, 9, 9)
+```
+
+### Dataset Structure
+
+`EndToEndDataset` contains:
+
+| Field | Meaning |
+|---|---|
+| `X` | incomplete input grids with zero for empty cells |
+| `y` | complete ground-truth solution grids |
+| `empty_mask` | cells that were removed and require prediction |
+| `removal_rates` | configured removal rate for each sample |
+| `solution_ids` | source-solution family for leakage-safe splitting |
+
+Each source solution produces one puzzle per removal rate. Inputs and targets use `int8`, masks use Boolean values, and metadata uses numeric NumPy arrays.
+
+### Solution-Level Split
+
+Splitting individual puzzle variants would create leakage because train and test could contain differently masked versions of the same completed grid. The new splitter therefore operates on source-solution IDs.
+
+```text
+Generate complete solutions
+          |
+Create one puzzle per removal rate
+          |
+Group variants by solution ID
+          |
+Shuffle solution IDs
+          |
+Assign complete groups to train or test
+```
+
+The resulting train and test ID sets are disjoint.
+
+### Implemented
+
+- Added full-grid input and target datasets.
+- Added multiple removal rates per source solution.
+- Added unique-solution puzzle generation.
+- Added empty-cell masks.
+- Added removal-rate metadata.
+- Added source-solution IDs.
+- Added reproducible generation.
+- Added solution-level train/test splitting.
+- Added independent input and target storage.
+- Added a dataset inspection script.
+- Added shape, integrity, leakage, reproducibility, and validation tests.
+
+### Usage
+
+Create a split in Python:
+
+```python
+from sudoku_ml.dataset.end_to_end import (
+    create_end_to_end_train_test_split,
+)
+
+split = create_end_to_end_train_test_split(
+    num_solutions=100,
+    test_size=0.2,
+    removal_rates=(0.50, 0.60, 0.65),
+    random_seed=42,
+)
+```
+
+Inspect the configured dataset:
+
+```bash
+python scripts/inspect_end_to_end_dataset.py
+```
+
+### Inspection Result
+
+```text
+End-to-End Sudoku Dataset
+--------------------------
+
+Training
+--------
+Samples:             240
+Input shape:         (240, 9, 9)
+Target shape:        (240, 9, 9)
+Minimum empty cells: 40
+Maximum empty cells: 52
+Average empty cells: 46.67
+
+Test
+----
+Samples:             60
+Input shape:         (60, 9, 9)
+Target shape:        (60, 9, 9)
+Minimum empty cells: 40
+Maximum empty cells: 52
+Average empty cells: 46.67
+
+Shared solution IDs:  0
+Inputs share target memory: False
+```
+
+### Interpretation
+
+The 100 source solutions produce 300 samples because each solution is represented at three removal rates. The 80/20 solution-level split therefore produces 240 training samples and 60 test samples.
+
+The empty-cell range follows integer removal counts:
+
+```text
+int(81 x 0.50) = 40
+int(81 x 0.60) = 48
+int(81 x 0.65) = 52
+```
+
+All removal rates occur equally often, producing an average of 46.67 empty cells. Zero shared solution IDs confirms that related puzzle variants do not cross the train/test boundary. Independent array storage confirms that modifying an input cannot silently alter its ground-truth target.
+
+### Testing
+
+The tests cover:
+
+- full-grid shapes,
+- one sample per solution and removal rate,
+- clue and target consistency,
+- complete target digit ranges,
+- Boolean empty masks,
+- exact removal counts,
+- reproducible generation,
+- independent input and target memory,
+- disjoint train/test solution families,
+- invalid solution counts,
+- empty and invalid removal rates,
+- invalid test sizes.
+
+Result:
+
+`282 passed`
+
+### Limitations
+
+- The inspected dataset contains only 100 source solutions.
+- Each solution contributes only one mask per removal rate.
+- Removal rate remains a difficulty proxy rather than a formal rating.
+- Unique-puzzle generation becomes more expensive at high removal rates.
+- Grids are not yet normalized or encoded for a neural network.
+- No end-to-end model has been trained yet.
+
+### Next Step
+
+Build a simple multi-layer perceptron baseline that maps 81 input cell values to 81 distributions over digits. Evaluate accuracy only on originally empty cells in addition to complete-grid exact match and Sudoku validity.
+
+### Conclusion
+
+The project now has a reproducible and leakage-safe foundation for genuine full-grid prediction. The next model will receive the incomplete Sudoku directly and predict all cell values without relying on the existing 118-feature single-cell representation.

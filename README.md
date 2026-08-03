@@ -311,6 +311,18 @@ Repeats the comparison across three independent training and evaluation seeds at
 
 At 65% removal, Random Forest Beam 4 reaches `76.67% +/- 9.43%` exact match, while Histogram Gradient Boosting Beam 4 reaches `73.33% +/- 18.86%`. Gradient Boosting remains approximately twice as fast, but its solution rate varies considerably more across seeds. Hybrid and classical solving remain the only strategies with 100% exact match in every run.
 
+### Inspect the End-to-End Dataset
+
+```bash
+python scripts/inspect_end_to_end_dataset.py
+```
+
+Creates full-grid input and target pairs for the end-to-end modeling phase. Inputs contain incomplete 9×9 Sudoku grids, targets contain the corresponding complete solutions, and Boolean masks identify cells the model must predict.
+
+Each generated solution produces one puzzle for every configured removal rate. The train/test split is performed by source-solution ID, so different puzzle variants derived from the same complete grid cannot appear in both partitions.
+
+With 100 source solutions, removal rates of 50%, 60%, and 65%, and a 20% test split, the dataset contains 240 training samples and 60 test samples. No solution IDs overlap, and input and target arrays do not share memory.
+
 ### Analyze Model Probability Rankings
 
 ```bash

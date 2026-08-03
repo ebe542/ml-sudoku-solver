@@ -1254,3 +1254,53 @@ At 65% removal, the repeated exact-match results are:
 The single-run advantage of Histogram Gradient Boosting Beam 4 does not persist in the repeated 65% result. Random Forest has a slightly higher mean and substantially lower variation, although three runs are insufficient to establish a statistically reliable model advantage.
 
 Histogram Gradient Boosting remains much faster. Its 65% Beam-4 runtime is `44.41 ms ± 9.67 ms`, compared with `88.33 ms ± 17.12 ms` for Random Forest. Its Hybrid solver reaches 100% exact match in `43.32 ms ± 17.95 ms`, making it both more reliable and slightly faster than its bounded Beam-4 configuration.
+
+## End-to-End Full-Grid Dataset
+
+The new modeling phase changes the prediction task from one selected cell to the complete Sudoku grid.
+
+```text
+Previous tabular task
+118 features for one empty cell
+             |
+             v
+       one digit class
+
+End-to-end task
+incomplete 9 x 9 grid
+             |
+             v
+     complete 9 x 9 grid
+```
+
+`EndToEndDataset` stores five aligned arrays:
+
+- `X`: incomplete grids with zero-valued empty cells,
+- `y`: complete solution grids,
+- `empty_mask`: Boolean positions that require prediction,
+- `removal_rates`: difficulty proxy used for each sample,
+- `solution_ids`: identity of the source solution family.
+
+For every independently generated complete solution, the generator creates one unique-solution puzzle at each requested removal rate. All variants retain the same `solution_id`.
+
+```text
+Source solution 17
+    |
+    +-- 50% removal puzzle
+    +-- 60% removal puzzle
+    +-- 65% removal puzzle
+```
+
+The train/test split shuffles unique solution IDs rather than individual samples. All variants of one solution therefore remain in the same partition. This prevents the model from being evaluated on a differently masked version of a solution already seen during training.
+
+```text
+100 source solutions
+        |
+        +-- 80 train IDs x 3 rates = 240 samples
+        |
+        +-- 20 test IDs  x 3 rates =  60 samples
+```
+
+Inputs and targets are copied into independent NumPy arrays. This protects complete targets from accidental modification when puzzles are transformed during later preprocessing or iterative prediction.
+
+The inspection reports 40, 48, and 52 removed cells for rates 50%, 60%, and 65%. Their balanced mean is 46.67 empty cells per sample. Training and test partitions contain zero shared solution IDs.
