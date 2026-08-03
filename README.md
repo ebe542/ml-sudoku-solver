@@ -301,6 +301,16 @@ At 60% removal, Beam width 4 reaches 100% exact match with both models. At 65%, 
 
 Histogram Gradient Boosting is consistently faster than Random Forest for model-guided search. At 65% removal, its Beam-4 runtime averages 30.37 ms per puzzle compared with 68.58 ms for Random Forest. The classical solver remains fastest at 3.29 ms.
 
+### Repeat the Beam Search Comparison
+
+```bash
+python scripts/evaluate_repeated_beam_search.py
+```
+
+Repeats the comparison across three independent training and evaluation seeds at removal rates of 60% and 65%. The reduced strategy set contains Greedy, Beam widths 2 and 4, Hybrid, and the classical reference.
+
+At 65% removal, Random Forest Beam 4 reaches `76.67% +/- 9.43%` exact match, while Histogram Gradient Boosting Beam 4 reaches `73.33% +/- 18.86%`. Gradient Boosting remains approximately twice as fast, but its solution rate varies considerably more across seeds. Hybrid and classical solving remain the only strategies with 100% exact match in every run.
+
 ### Analyze Model Probability Rankings
 
 ```bash

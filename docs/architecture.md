@@ -1229,3 +1229,28 @@ Runtime means in milliseconds are:
 Beam width increases solution quality but generally raises state generation and runtime. At 65% removal, Beam 4 generates 89.05 states per Random Forest puzzle and 92.55 per Gradient Boosting puzzle. It still prunes 1.80 states per puzzle for both models, which explains why exact match remains below 100%.
 
 Histogram Gradient Boosting provides the strongest bounded-search result: 90% exact match at 65% removal with Beam 4. Hybrid remains fully reliable and slightly faster for that model. The classical solver also remains fully reliable and is much faster because feature generation and model inference are unnecessary.
+
+## Repeated Beam Evaluation
+
+The repeated comparison changes both the training seed and puzzle-generation seed for every run. The evaluation seed is derived from the training seed with an offset of 10,000, ensuring that training and evaluation generation do not reuse the same random sequence.
+
+```text
+random seed
+    |
+    +-- training seed: seed
+    |
+    +-- evaluation seed: seed + 10,000
+```
+
+For each removal rate and seed, both models are retrained and all strategies receive the same newly generated unique-solution puzzles. Metrics from individual runs are summarized with mean, population standard deviation, minimum, and maximum through the existing `MetricSummary` type.
+
+At 65% removal, the repeated exact-match results are:
+
+| Model | Greedy | Beam 2 | Beam 4 | Hybrid |
+|---|---:|---:|---:|---:|
+| Random Forest | 33.33% ± 4.71% | 53.33% ± 4.71% | 76.67% ± 9.43% | 100.00% ± 0.00% |
+| Histogram Gradient Boosting | 43.33% ± 20.55% | 56.67% ± 24.94% | 73.33% ± 18.86% | 100.00% ± 0.00% |
+
+The single-run advantage of Histogram Gradient Boosting Beam 4 does not persist in the repeated 65% result. Random Forest has a slightly higher mean and substantially lower variation, although three runs are insufficient to establish a statistically reliable model advantage.
+
+Histogram Gradient Boosting remains much faster. Its 65% Beam-4 runtime is `44.41 ms ± 9.67 ms`, compared with `88.33 ms ± 17.12 ms` for Random Forest. Its Hybrid solver reaches 100% exact match in `43.32 ms ± 17.95 ms`, making it both more reliable and slightly faster than its bounded Beam-4 configuration.

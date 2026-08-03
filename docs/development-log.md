@@ -3985,3 +3985,147 @@ Repeat the Beam comparison across several seeds and consider candidate-normalize
 ### Conclusion
 
 Beam Search substantially closes the reliability gap between Greedy ML and Hybrid backtracking. Histogram Gradient Boosting with width 4 is the strongest bounded Model-only configuration, reaching 90% exact match at 65% removal, but full Hybrid and classical search remain the only completely reliable approaches in this experiment.
+
+---
+## Commit 41 - Repeated Beam Search Comparison
+
+**Commit:** `feat: repeat beam search comparison across seeds`
+
+### Objective
+
+Determine whether the Beam-width and classifier results from Commit 40 remain stable across independently generated training data and evaluation puzzles.
+
+### Motivation
+
+Commit 40 used one training seed, one evaluation seed, and 20 puzzles per removal rate. Histogram Gradient Boosting with Beam width 4 achieved the strongest bounded-search result in that single run. Repetition is necessary before treating this result as a stable model advantage.
+
+### Repeated Design
+
+The experiment uses three random seeds:
+
+```text
+42, 123, 202
+```
+
+Each seed controls a newly generated training split and model initialization. Evaluation puzzles use `seed + 10,000`, separating their generation sequence from training while preserving reproducibility.
+
+The comparison focuses on removal rates 60% and 65%, where model decisions are required. Beam width 3 is omitted because widths 2 and 4 already represent the central bounded-search trade-off while reducing repeated runtime.
+
+### Implemented
+
+- Added repeated Beam evaluation across seeds.
+- Retrained both persistent models for every run.
+- Generated independent unique-solution evaluation sets.
+- Reused identical puzzles across strategies within each run.
+- Aggregated quality, runtime, ML decisions, backtracks, generated states, and pruned states.
+- Reused `MetricSummary` for mean, population standard deviation, minimum, and maximum.
+- Added a focused repeated-comparison report.
+- Added validation and integration tests.
+
+### Usage
+
+```bash
+python scripts/evaluate_repeated_beam_search.py
+```
+
+### Evaluation Configuration
+
+```text
+Removal rates: 60%, 65%
+Random seeds: 42, 123, 202
+Runs per removal rate: 3
+Training solutions per run: 100
+Evaluation puzzles per run: 10
+Beam widths: 2, 4
+Model iterations: 100
+Evaluation seed offset: 10,000
+Evaluation puzzles: unique solution
+```
+
+### Exact Solution Rate
+
+| Removal | Model | Greedy | Beam 2 | Beam 4 | Hybrid |
+|---:|---|---:|---:|---:|---:|
+| 60% | Random Forest | 66.67% ± 12.47% | 83.33% ± 4.71% | 93.33% ± 4.71% | 100.00% ± 0.00% |
+| 60% | Histogram Gradient Boosting | 66.67% ± 4.71% | 83.33% ± 12.47% | 96.67% ± 4.71% | 100.00% ± 0.00% |
+| 65% | Random Forest | 33.33% ± 4.71% | 53.33% ± 4.71% | 76.67% ± 9.43% | 100.00% ± 0.00% |
+| 65% | Histogram Gradient Boosting | 43.33% ± 20.55% | 56.67% ± 24.94% | 73.33% ± 18.86% | 100.00% ± 0.00% |
+
+Classical solving reaches `100.00% ± 0.00%` at both removal rates.
+
+At 60%, Gradient Boosting Beam 4 retains a small advantage. At 65%, Random Forest Beam 4 has a slightly higher mean and lower standard deviation. The classifier ordering therefore depends on difficulty and generated data.
+
+### Runtime
+
+Average milliseconds per puzzle:
+
+| Removal | Model | Greedy | Beam 2 | Beam 4 | Hybrid |
+|---:|---|---:|---:|---:|---:|
+| 60% | Random Forest | 13.39 ± 4.46 | 19.81 ± 8.15 | 24.77 ± 11.13 | 26.20 ± 13.12 |
+| 60% | Histogram Gradient Boosting | 8.03 ± 2.40 | 12.39 ± 5.72 | 14.50 ± 6.62 | 12.71 ± 5.44 |
+| 65% | Random Forest | 34.84 ± 4.53 | 56.88 ± 12.12 | 88.33 ± 17.12 | 103.23 ± 34.15 |
+| 65% | Histogram Gradient Boosting | 18.30 ± 3.19 | 28.95 ± 5.44 | 44.41 ± 9.67 | 43.32 ± 17.95 |
+
+Classical solving remains much faster at `1.61 ms ± 0.09 ms` for 60% and `3.38 ms ± 0.61 ms` for 65% removal.
+
+Histogram Gradient Boosting is consistently faster than Random Forest for the same strategy. At 65%, Gradient Boosting Hybrid is slightly faster than Gradient Boosting Beam 4 while remaining fully reliable.
+
+### Search Effort
+
+At 65% removal:
+
+| Model | Strategy | ML decisions | Backtracks | Generated | Pruned |
+|---|---|---:|---:|---:|---:|
+| Random Forest | Beam 2 | 3.73 ± 0.83 | 0.00 ± 0.00 | 62.33 ± 5.78 | 2.50 ± 0.80 |
+| Random Forest | Beam 4 | 5.77 ± 1.15 | 0.00 ± 0.00 | 95.53 ± 6.32 | 2.60 ± 1.02 |
+| Random Forest | Hybrid | 6.67 ± 2.13 | 65.50 ± 25.45 | 0.00 ± 0.00 | 0.00 ± 0.00 |
+| Histogram Gradient Boosting | Beam 2 | 3.97 ± 0.82 | 0.00 ± 0.00 | 63.37 ± 5.78 | 2.87 ± 0.82 |
+| Histogram Gradient Boosting | Beam 4 | 6.10 ± 1.56 | 0.00 ± 0.00 | 94.03 ± 6.50 | 3.27 ± 1.60 |
+| Histogram Gradient Boosting | Hybrid | 5.97 ± 2.60 | 55.30 ± 31.85 | 0.00 ± 0.00 | 0.00 ± 0.00 |
+
+Wider beams generate substantially more states but still prune potentially necessary paths. Hybrid explores failed branches through backtracking instead and remains reliable.
+
+### Interpretation
+
+Beam Search consistently improves on Greedy, and Beam 4 consistently improves on Beam 2. The size of the improvement is stable in direction but not in magnitude.
+
+The single-run conclusion that Histogram Gradient Boosting is the strongest Beam-4 model does not hold uniformly. At 65%, its exact-match standard deviation is twice that of Random Forest Beam 4. This suggests greater sensitivity to generated training and evaluation data.
+
+The practical result is clearer than the model ranking: Histogram Gradient Boosting Hybrid combines 100% exact match with approximately Beam-4 runtime. Classical solving remains the fastest reliable method overall.
+
+### Testing
+
+The new tests cover:
+
+- repeated metric summaries,
+- both persistent models,
+- every requested strategy,
+- multiple seeds,
+- run count and stored seeds,
+- non-negative runtime and state metrics,
+- empty seed and removal-rate collections,
+- invalid removal rates.
+
+Results:
+
+```text
+Repeated Beam tests: 7 passed
+Full suite: 267 passed
+```
+
+### Limitations
+
+- Three runs remain a small sample.
+- Each run contains only ten evaluation puzzles.
+- Training and evaluation variation are combined in one seed dimension.
+- Runtime measurements depend on current machine load.
+- Only Beam widths 2 and 4 are repeated.
+- No probability-calibration or alternative scoring method is used.
+
+### Next Step
+
+Compare raw, candidate-normalized, and rank-based Beam path scores. Histogram Gradient Boosting's overconfidence may distort cumulative raw-probability scores, especially at 65% removal.
+
+### Conclusion
+
+Repeated evaluation confirms Beam Search as a useful reliability improvement over Greedy solving, but it does not establish a universally superior classifier. Histogram Gradient Boosting is faster, while Random Forest Beam 4 is slightly more stable at the hardest evaluated rate. Hybrid and classical search remain the only consistently complete approaches.
