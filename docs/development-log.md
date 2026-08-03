@@ -3704,3 +3704,133 @@ Implement a bounded Beam Search that retains the strongest two or three candidat
 ### Conclusion
 
 Histogram Gradient Boosting is the better Model-only classifier in complete-solution rate, but its mistakes are strongly overconfident. The correct choice is usually immediately behind the wrong Top-1 choice, making Beam Search the most informative next experiment.
+
+---
+## Commit 39 - Bounded Model-Guided Beam Search
+
+**Commit:** `feat: add model-guided beam search solver`
+
+### Objective
+
+Retain several high-scoring model-guided Sudoku paths so a wrong Greedy Top-1 decision does not immediately terminate the complete solving attempt.
+
+### Motivation
+
+Commit 38 showed that the correct digit has average rank 2.00 at the first Model-only error. Greedy solving discards that alternative permanently. Full recursive backtracking repairs errors reliably but explores candidates systematically rather than enforcing a fixed search budget.
+
+Beam Search provides an intermediate experiment: it permits alternative paths but restricts the number of active grids through `beam_width`.
+
+### Search Algorithm
+
+The solver begins with one state containing the input grid and score zero. During each iteration it:
+
+1. Selects the empty MRV cell in every active state.
+2. Discards states with an immediate contradiction.
+3. Creates one child for a deterministic candidate.
+4. Creates one child for every valid ambiguous candidate.
+5. Adds the selected digit's log-probability to each ambiguous child score.
+6. Sorts all children by cumulative score.
+7. Retains at most `beam_width` states.
+8. Returns the highest-scoring complete state or `None` when no state remains.
+
+Each child owns a grid copy, so expanding or pruning one path cannot modify another path or the input puzzle.
+
+### Why Log-Probabilities?
+
+A path probability is conceptually the product of its decision probabilities. Products of many values below one become extremely small. Logarithms preserve ordering while replacing multiplication with addition:
+
+```text
+p(path) = p1 * p2 * ... * pn
+
+log p(path) = log(p1) + log(p2) + ... + log(pn)
+```
+
+Deterministic placements are score-neutral. A zero model probability is clamped to the smallest positive floating-point value before applying `log()`.
+
+### Statistics
+
+`BeamSearchStats` retains the common solver metrics and adds:
+
+```text
+generated_states
+pruned_states
+max_active_states
+```
+
+Generated states count all children, including deterministic children. Pruned states count valid generated children removed solely by the beam-width limit. Contradictory parent states produce no child. Backtracks remain zero because Beam Search never recursively restores a previous grid.
+
+### Implemented
+
+- Added configurable `BeamSearchSudokuSolver`.
+- Added positive-integer beam-width validation.
+- Added independent scored grid states.
+- Added MRV-based state expansion.
+- Added cumulative log-probability scoring.
+- Added bounded global state pruning.
+- Added Beam-specific statistics.
+- Preserved input-grid immutability.
+- Preserved existing Hybrid, Greedy, and classical solvers.
+
+### Usage
+
+```python
+solver = BeamSearchSudokuSolver(
+    model,
+    beam_width=4,
+)
+
+solution = solver.solve(puzzle)
+```
+
+### Known Greedy Failure
+
+The established Random Forest fixture that Greedy ML cannot solve was checked with several widths:
+
+| Beam width | Valid completion | Generated states | Pruned states |
+|---:|---:|---:|---:|
+| 2 | no | 80 | 7 |
+| 3 | no | 102 | 5 |
+| 4 | yes | 135 | 4 |
+| 5 | yes | 154 | 2 |
+| 8 | yes | 172 | 0 |
+
+Although the correct digit was second at the first error in the earlier aggregate analysis, width 2 is insufficient for this complete path. Later decisions and cumulative scores can still remove the correct branch. Width 4 is the smallest successful setting for this fixture.
+
+### Testing
+
+The tests cover:
+
+- deterministic completion,
+- deterministic statistics,
+- input-grid immutability,
+- beam-width enforcement,
+- generated and pruned state counts,
+- recovery of a known Greedy failure,
+- zero backtracking,
+- non-positive beam widths,
+- non-integer beam widths,
+- invalid Sudoku input.
+
+Results:
+
+```text
+Beam Search tests: 8 passed
+Full suite: 251 passed
+```
+
+### Limitations
+
+- No aggregate comparison across beam widths exists yet.
+- Scores use raw, uncalibrated probabilities.
+- Beam Search can prune the correct path even when it initially retains it.
+- Wider beams increase memory, feature-generation, and inference costs.
+- The first complete state is selected by accumulated model score, not by ground truth.
+- The solver is not yet exposed through the CLI.
+
+### Next Step
+
+Evaluate Greedy, Beam widths 2, 3, and 4, Hybrid, and classical solving on identical unique-solution puzzles. Compare exact solution rate, validity, runtime, state generation, pruning, ML decisions, and backtracking for both persistent model types.
+
+### Conclusion
+
+Beam Search creates a measurable bridge between irreversible Model-only decisions and unrestricted recursive backtracking. It can recover a known Greedy failure under a finite state budget, but the required width depends on the entire sequence of model scores rather than only the first-error rank.

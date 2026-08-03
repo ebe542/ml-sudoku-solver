@@ -1142,3 +1142,45 @@ The first experiment produced:
 | 65% | Histogram Gradient Boosting | 30.00% | 70.00% | 9.86 | 68.52% | 2.00 |
 
 Histogram Gradient Boosting improves complete Model-only success, but its wrong first choices receive more than twice the confidence of Random Forest errors. Both models rank the correct digit second on average at the first error. This provides direct motivation for retaining more than one candidate path through Beam Search.
+
+## Bounded Beam Search
+
+`BeamSearchSudokuSolver` keeps a bounded collection of partial grids. Every state contains an independent grid copy and a cumulative model score. This allows a lower-ranked alternative to survive after the current Top-1 path encounters a contradiction.
+
+```text
+Active states
+      |
+      v
+Select one MRV cell per state
+      |
+      +-- single candidate --> one score-neutral child
+      |
+      +-- ambiguous --------> one child per valid candidate
+                                      |
+                                      v
+                           add log(probability)
+                                      |
+                                      v
+                         sort all generated children
+                                      |
+                                      v
+                       retain best beam_width states
+```
+
+Log-probabilities convert multiplication across a decision sequence into numerically stable addition:
+
+```text
+path score = log(p1) + log(p2) + ... + log(pn)
+```
+
+Deterministic placements do not change the score because Sudoku constraints already determine their digit. Zero model probabilities are replaced with the smallest positive floating-point value before taking the logarithm, allowing every rule-valid candidate to remain representable.
+
+`BeamSearchStats` extends the common statistics with:
+
+- `generated_states`,
+- `pruned_states`,
+- `max_active_states`.
+
+`backtracks` remains zero because the algorithm does not recursively undo a placement. Failed states disappear from the active collection, and low-scoring states are pruned when the beam limit is exceeded.
+
+Beam width 1 behaves as a single-path bounded search. Larger widths trade memory and inference work for a greater chance of retaining the correct alternative. The known Random Forest Greedy-failure puzzle remains unsolved at widths 2 and 3 but is solved at width 4. This single fixture demonstrates recovery capability, not general model quality.

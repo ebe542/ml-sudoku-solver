@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from math import log
 
 import numpy as np
 
@@ -30,6 +31,23 @@ class GreedyDecision:
     selected_digit: int
     confidence: float | None
     is_ml_decision: bool
+
+
+@dataclass
+class BeamSearchStats(SolverStats):
+    """Store statistics collected during Beam Search."""
+
+    generated_states: int = 0
+    pruned_states: int = 0
+    max_active_states: int = 1
+
+
+@dataclass(frozen=True)
+class _BeamState:
+    """Store one partial grid and its cumulative model score."""
+
+    grid: np.ndarray
+    score: float
 
 
 class HybridSudokuSolver:
@@ -194,6 +212,150 @@ class GreedyMLSudokuSolver(HybridSudokuSolver):
             )
 
             grid[row, column] = selected_digit
+
+
+class BeamSearchSudokuSolver(HybridSudokuSolver):
+    """Solve Sudoku grids while retaining several model-ranked paths."""
+
+    def __init__(
+        self,
+        model: SudokuProbabilityModel,
+        beam_width: int = 2,
+    ) -> None:
+        if not isinstance(beam_width, int):
+            raise TypeError("Beam width must be an integer.")
+
+        if beam_width <= 0:
+            raise ValueError("Beam width must be positive.")
+
+        super().__init__(model)
+        self.beam_width = beam_width
+        self.stats = BeamSearchStats()
+
+    def solve(self, puzzle: SudokuGrid) -> SudokuGrid | None:
+        """Return the highest-scoring valid completion in the beam."""
+        self.stats = BeamSearchStats()
+
+        if not puzzle.is_valid():
+            raise ValueError("The puzzle must be a valid Sudoku grid.")
+
+        active_states = [
+            _BeamState(
+                grid=puzzle.values.copy(),
+                score=0.0,
+            )
+        ]
+
+        while active_states:
+            next_states: list[_BeamState] = []
+
+            for state in active_states:
+                choice = self._select_cell(state.grid)
+
+                if choice is None:
+                    return SudokuGrid(state.grid)
+
+                row, column, candidates = choice
+
+                if not candidates:
+                    continue
+
+                next_states.extend(
+                    self._expand_state(
+                        state,
+                        row,
+                        column,
+                        candidates,
+                    )
+                )
+
+            next_states.sort(
+                key=lambda state: state.score,
+                reverse=True,
+            )
+
+            discarded_states = max(
+                0,
+                len(next_states) - self.beam_width,
+            )
+            self.stats.pruned_states += discarded_states
+            active_states = next_states[: self.beam_width]
+            self.stats.max_active_states = max(
+                self.stats.max_active_states,
+                len(active_states),
+            )
+
+        return None
+
+    def _expand_state(
+        self,
+        state: _BeamState,
+        row: int,
+        column: int,
+        candidates: set[int],
+    ) -> list[_BeamState]:
+        if len(candidates) == 1:
+            self.stats.deterministic_steps += 1
+            digit = next(iter(candidates))
+
+            return [
+                self._create_child_state(
+                    state,
+                    row,
+                    column,
+                    digit,
+                    state.score,
+                )
+            ]
+
+        self.stats.ml_decisions += 1
+        self.stats.branching_decisions += 1
+
+        features = create_feature_vector(
+            state.grid,
+            row,
+            column,
+        )[np.newaxis, :]
+        probabilities = self.model.predict_probabilities(features)[0]
+        probability_by_digit = dict(
+            zip(self.model.classes, probabilities)
+        )
+
+        children = [
+            self._create_child_state(
+                state,
+                row,
+                column,
+                digit,
+                state.score
+                + log(
+                    max(
+                        float(probability_by_digit.get(digit, 0.0)),
+                        np.finfo(float).tiny,
+                    )
+                ),
+            )
+            for digit in candidates
+        ]
+
+        return children
+
+    def _create_child_state(
+        self,
+        state: _BeamState,
+        row: int,
+        column: int,
+        digit: int,
+        score: float,
+    ) -> _BeamState:
+        child_grid = state.grid.copy()
+        child_grid[row, column] = digit
+        self.stats.generated_states += 1
+
+        return _BeamState(
+            grid=child_grid,
+            score=score,
+        )
 
 
 class ClassicalSudokuSolver(HybridSudokuSolver):

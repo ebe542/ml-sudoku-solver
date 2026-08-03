@@ -271,6 +271,24 @@ Compares Random Forest and Histogram Gradient Boosting on identical unique-solut
 
 Histogram Gradient Boosting improves exact match from 55% to 65% at 60% removal and from 25% to 30% at 65% removal. At every observed first error, the correct digit was ranked second on average. The Gradient Boosting errors were much more confident, however: 72.05% at 60% removal and 68.52% at 65%, compared with 31.22% and 29.60% for Random Forest.
 
+### Solve with Beam Search
+
+`BeamSearchSudokuSolver` retains several model-ranked partial grids instead of committing permanently to one Greedy path:
+
+```python
+from sudoku_ml.solver import BeamSearchSudokuSolver
+
+solver = BeamSearchSudokuSolver(
+    model,
+    beam_width=4,
+)
+solution = solver.solve(puzzle)
+```
+
+Path scores are sums of log-probabilities. After every placement, only the highest-scoring `beam_width` states remain. The solver reports generated, pruned, and maximum active states in addition to the common solver statistics.
+
+Beam Search is bounded model-guided search rather than classical recursive backtracking. In the established Greedy failure fixture, widths 2 and 3 still lose the correct path, while width 4 finds a valid completion. A broader comparison across models, widths, and removal rates is required before drawing general conclusions.
+
 ### Analyze Model Probability Rankings
 
 ```bash
