@@ -1184,3 +1184,48 @@ Deterministic placements do not change the score because Sudoku constraints alre
 `backtracks` remains zero because the algorithm does not recursively undo a placement. Failed states disappear from the active collection, and low-scoring states are pruned when the beam limit is exceeded.
 
 Beam width 1 behaves as a single-path bounded search. Larger widths trade memory and inference work for a greater chance of retaining the correct alternative. The known Random Forest Greedy-failure puzzle remains unsolved at widths 2 and 3 but is solved at width 4. This single fixture demonstrates recovery capability, not general model quality.
+
+## Search-Strategy Evaluation
+
+The Beam comparison reuses `evaluate_solver()` for every strategy. The common result now reads optional Beam statistics through the solver's stats object while returning zero for solvers that do not expose them.
+
+```text
+Shared unique puzzles and ground truth
+                  |
+        +---------+---------+
+        |                   |
+   Classical          Probability model
+                            |
+                 +----------+----------+
+                 |          |          |
+              Greedy    Beam 2/3/4   Hybrid
+                 |          |          |
+                 +----------+----------+
+                            |
+             exact match, validity, runtime,
+             search effort and Beam states
+```
+
+The classical solver is evaluated once per removal rate because it has no model dependency. Every model-guided strategy receives the same puzzle arrays and expected solutions. This prevents puzzle selection from confounding model or search-strategy differences.
+
+Exact-match results at ambiguous removal rates are:
+
+| Removal | Model | Greedy | Beam 2 | Beam 3 | Beam 4 | Hybrid |
+|---:|---|---:|---:|---:|---:|---:|
+| 60% | Random Forest | 55% | 75% | 90% | 100% | 100% |
+| 60% | Histogram Gradient Boosting | 65% | 80% | 85% | 100% | 100% |
+| 65% | Random Forest | 25% | 60% | 70% | 80% | 100% |
+| 65% | Histogram Gradient Boosting | 30% | 75% | 80% | 90% | 100% |
+
+Runtime means in milliseconds are:
+
+| Removal | Model | Greedy | Beam 2 | Beam 3 | Beam 4 | Hybrid |
+|---:|---|---:|---:|---:|---:|---:|
+| 60% | Random Forest | 14.96 | 17.95 | 20.24 | 23.14 | 17.78 |
+| 60% | Histogram Gradient Boosting | 7.83 | 9.62 | 10.93 | 11.97 | 11.96 |
+| 65% | Random Forest | 33.46 | 47.63 | 59.16 | 68.58 | 61.73 |
+| 65% | Histogram Gradient Boosting | 16.07 | 25.25 | 30.44 | 30.37 | 26.23 |
+
+Beam width increases solution quality but generally raises state generation and runtime. At 65% removal, Beam 4 generates 89.05 states per Random Forest puzzle and 92.55 per Gradient Boosting puzzle. It still prunes 1.80 states per puzzle for both models, which explains why exact match remains below 100%.
+
+Histogram Gradient Boosting provides the strongest bounded-search result: 90% exact match at 65% removal with Beam 4. Hybrid remains fully reliable and slightly faster for that model. The classical solver also remains fully reliable and is much faster because feature generation and model inference are unnecessary.

@@ -289,6 +289,18 @@ Path scores are sums of log-probabilities. After every placement, only the highe
 
 Beam Search is bounded model-guided search rather than classical recursive backtracking. In the established Greedy failure fixture, widths 2 and 3 still lose the correct path, while width 4 finds a valid completion. A broader comparison across models, widths, and removal rates is required before drawing general conclusions.
 
+### Compare Search Strategies
+
+```bash
+python scripts/evaluate_beam_search.py
+```
+
+Compares classical solving with Greedy, Beam widths 2, 3, and 4, and Hybrid solving for Random Forest and Histogram Gradient Boosting on identical unique-solution puzzles.
+
+At 60% removal, Beam width 4 reaches 100% exact match with both models. At 65%, Random Forest improves from 25% Greedy exact match to 80% with Beam 4, while Histogram Gradient Boosting improves from 30% to 90%. Only Hybrid and classical backtracking retain 100% reliability at the hardest evaluated rate.
+
+Histogram Gradient Boosting is consistently faster than Random Forest for model-guided search. At 65% removal, its Beam-4 runtime averages 30.37 ms per puzzle compared with 68.58 ms for Random Forest. The classical solver remains fastest at 3.29 ms.
+
 ### Analyze Model Probability Rankings
 
 ```bash

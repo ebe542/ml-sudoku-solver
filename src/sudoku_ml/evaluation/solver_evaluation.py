@@ -19,6 +19,9 @@ class SolverEvaluationResult:
     ml_decisions: int
     backtracks: int
     matching_solutions: int | None = None
+    generated_states: int = 0
+    pruned_states: int = 0
+    maximum_active_states: int = 0
 
     @property
     def solution_rate(self) -> float:
@@ -61,6 +64,22 @@ class SolverEvaluationResult:
         return self.ml_decisions / self.total_puzzles
 
     @property
+    def average_generated_states(self) -> float:
+        """Return average generated Beam states per puzzle."""
+        if self.total_puzzles == 0:
+            return 0.0
+
+        return self.generated_states / self.total_puzzles
+
+    @property
+    def average_pruned_states(self) -> float:
+        """Return average pruned Beam states per puzzle."""
+        if self.total_puzzles == 0:
+            return 0.0
+
+        return self.pruned_states / self.total_puzzles
+
+    @property
     def matching_solution_rate(self) -> float | None:
         """Return the rate of solutions matching supplied ground truth."""
         if self.matching_solutions is None:
@@ -93,6 +112,9 @@ def evaluate_solver(
     deterministic_steps = 0
     ml_decisions = 0
     backtracks = 0
+    generated_states = 0
+    pruned_states = 0
+    maximum_active_states = 0
 
     for puzzle_index, puzzle_values in enumerate(puzzles):
         puzzle = SudokuGrid(puzzle_values)
@@ -126,6 +148,24 @@ def evaluate_solver(
         deterministic_steps += solver.stats.deterministic_steps
         ml_decisions += solver.stats.ml_decisions
         backtracks += solver.stats.backtracks
+        generated_states += getattr(
+            solver.stats,
+            "generated_states",
+            0,
+        )
+        pruned_states += getattr(
+            solver.stats,
+            "pruned_states",
+            0,
+        )
+        maximum_active_states = max(
+            maximum_active_states,
+            getattr(
+                solver.stats,
+                "max_active_states",
+                0,
+            ),
+        )
 
     return SolverEvaluationResult(
         total_puzzles=len(puzzles),
@@ -136,4 +176,7 @@ def evaluate_solver(
         ml_decisions=ml_decisions,
         backtracks=backtracks,
         matching_solutions=matching_solutions,
+        generated_states=generated_states,
+        pruned_states=pruned_states,
+        maximum_active_states=maximum_active_states,
     )

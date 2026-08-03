@@ -25,6 +25,9 @@ def test_solver_evaluation_calculates_summary_metrics() -> None:
     assert result.average_runtime_seconds == pytest.approx(0.2)
     assert result.average_backtracks == pytest.approx(2.0)
     assert result.average_ml_decisions == pytest.approx(4.0)
+    assert result.average_generated_states == 0.0
+    assert result.average_pruned_states == 0.0
+    assert result.maximum_active_states == 0
     assert result.matching_solution_rate is None
 
 
@@ -44,6 +47,9 @@ def test_solver_evaluation_handles_empty_evaluation() -> None:
     assert result.average_runtime_seconds == 0.0
     assert result.average_backtracks == 0.0
     assert result.average_ml_decisions == 0.0
+    assert result.average_generated_states == 0.0
+    assert result.average_pruned_states == 0.0
+    assert result.maximum_active_states == 0
     assert result.matching_solution_rate is None
 
 

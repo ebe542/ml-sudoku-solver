@@ -3834,3 +3834,154 @@ Evaluate Greedy, Beam widths 2, 3, and 4, Hybrid, and classical solving on ident
 ### Conclusion
 
 Beam Search creates a measurable bridge between irreversible Model-only decisions and unrestricted recursive backtracking. It can recover a known Greedy failure under a finite state budget, but the required width depends on the entire sequence of model scores rather than only the first-error rank.
+
+---
+## Commit 40 - Search-Strategy and Beam-Width Comparison
+
+**Commit:** `feat: compare model-guided search strategies`
+
+### Objective
+
+Measure how Beam width changes complete Sudoku quality, runtime, and search effort relative to Greedy, Hybrid, and classical solving for both persistent model types.
+
+### Motivation
+
+Commit 39 demonstrated that Beam Search can recover one known Greedy failure, but a single fixture cannot establish a useful width or model choice. A controlled comparison on identical unique-solution puzzles is required to quantify the reliability-cost trade-off.
+
+### Experimental Design
+
+For every removal rate, the experiment:
+
+1. Creates one solution-level training split.
+2. Trains Random Forest and Histogram Gradient Boosting on that split.
+3. Generates one shared collection of unique-solution puzzles.
+4. Evaluates the classical solver once.
+5. Evaluates Greedy, Beam 2, Beam 3, Beam 4, and Hybrid for each model.
+6. Checks validity and exact ground-truth match.
+7. Measures runtime and solver-specific search statistics.
+
+The only changing factors within a puzzle collection are probability model and search strategy.
+
+### Implemented
+
+- Extended common solver evaluation with optional Beam statistics.
+- Added reusable multi-strategy comparison.
+- Added shared classical reference evaluation.
+- Added Random Forest and Histogram Gradient Boosting training per rate.
+- Added configurable Beam-width collections.
+- Added per-removal-rate result structures.
+- Added a two-part quality, runtime, and search-effort report.
+- Added comparison, validation, and integration tests.
+
+### Usage
+
+```bash
+python scripts/evaluate_beam_search.py
+```
+
+### Evaluation Configuration
+
+```text
+Removal rates: 50%, 60%, 65%
+Training solutions per rate: 100
+Evaluation puzzles per rate: 20
+Test size: 20%
+Training seed: 42
+Evaluation seed: 123
+Random Forest estimators: 100
+Gradient Boosting iterations: 100
+Beam widths: 2, 3, 4
+Evaluation puzzles: unique solution
+```
+
+### Solution Quality
+
+Every strategy reaches 100% exact match and validity at 50% removal. These puzzles require no ML decisions, so Beam width and classifier are not exercised.
+
+| Removal | Model | Greedy | Beam 2 | Beam 3 | Beam 4 | Hybrid |
+|---:|---|---:|---:|---:|---:|---:|
+| 60% | Random Forest | 55% | 75% | 90% | 100% | 100% |
+| 60% | Histogram Gradient Boosting | 65% | 80% | 85% | 100% | 100% |
+| 65% | Random Forest | 25% | 60% | 70% | 80% | 100% |
+| 65% | Histogram Gradient Boosting | 30% | 75% | 80% | 90% | 100% |
+
+The classical solver reaches 100% at every removal rate.
+
+Beam Search produces a large improvement over irreversible Greedy solving. At 65%, Beam 4 gains 55 percentage points for Random Forest and 60 percentage points for Histogram Gradient Boosting. A finite width of four nevertheless remains less reliable than full backtracking.
+
+### Runtime
+
+Average milliseconds per puzzle:
+
+| Removal | Model | Greedy | Beam 2 | Beam 3 | Beam 4 | Hybrid |
+|---:|---|---:|---:|---:|---:|---:|
+| 60% | Random Forest | 14.96 | 17.95 | 20.24 | 23.14 | 17.78 |
+| 60% | Histogram Gradient Boosting | 7.83 | 9.62 | 10.93 | 11.97 | 11.96 |
+| 65% | Random Forest | 33.46 | 47.63 | 59.16 | 68.58 | 61.73 |
+| 65% | Histogram Gradient Boosting | 16.07 | 25.25 | 30.44 | 30.37 | 26.23 |
+
+Classical runtime is 1.70 ms at 60% and 3.29 ms at 65%. It remains substantially faster than every strategy that performs feature generation and model inference.
+
+Histogram Gradient Boosting is consistently faster than Random Forest within the same model-guided strategy. At 65%, Gradient Boosting Beam 4 is approximately 2.26 times faster than Random Forest Beam 4 while also reaching a higher exact solution rate.
+
+### Search Effort
+
+| Removal | Model | Strategy | ML decisions | Backtracks | Generated | Pruned | Max active |
+|---:|---|---|---:|---:|---:|---:|---:|
+| 60% | Random Forest | Beam 2 | 1.10 | 0.00 | 53.35 | 0.50 | 2 |
+| 60% | Random Forest | Beam 3 | 1.25 | 0.00 | 60.40 | 0.30 | 3 |
+| 60% | Random Forest | Beam 4 | 1.35 | 0.00 | 64.75 | 0.10 | 4 |
+| 60% | Histogram Gradient Boosting | Beam 2 | 1.15 | 0.00 | 55.40 | 0.60 | 2 |
+| 60% | Histogram Gradient Boosting | Beam 3 | 1.25 | 0.00 | 59.45 | 0.25 | 3 |
+| 60% | Histogram Gradient Boosting | Beam 4 | 1.25 | 0.00 | 64.15 | 0.05 | 4 |
+| 65% | Random Forest | Beam 2 | 3.05 | 0.00 | 59.70 | 2.00 | 2 |
+| 65% | Random Forest | Beam 3 | 3.80 | 0.00 | 77.85 | 1.85 | 3 |
+| 65% | Random Forest | Beam 4 | 4.40 | 0.00 | 89.05 | 1.80 | 4 |
+| 65% | Histogram Gradient Boosting | Beam 2 | 3.05 | 0.00 | 65.65 | 2.00 | 2 |
+| 65% | Histogram Gradient Boosting | Beam 3 | 3.60 | 0.00 | 80.25 | 1.70 | 3 |
+| 65% | Histogram Gradient Boosting | Beam 4 | 4.25 | 0.00 | 92.55 | 1.80 | 4 |
+
+Generated-state counts include deterministic children. Increasing width allows more paths to survive and therefore causes more later state expansions. Beam Search reports zero backtracks because it discards states instead of recursively undoing placements.
+
+At 65%, every tested width still prunes paths. The remaining 10% Gradient Boosting and 20% Random Forest Beam-4 failures show that at least one necessary path falls outside the four highest cumulative model scores.
+
+### Testing
+
+The tests cover:
+
+- all expected model and strategy combinations,
+- one shared classical result,
+- identical puzzle and ground-truth use,
+- exact-match evaluation,
+- Beam state aggregation,
+- both persistent trained models,
+- per-removal-rate evaluation,
+- empty model and puzzle collections,
+- mismatched solution counts,
+- empty, non-positive, and non-integer Beam widths,
+- zero defaults for non-Beam statistics.
+
+Results:
+
+```text
+Focused evaluation tests: 13 passed
+Full suite: 260 passed
+```
+
+### Limitations
+
+- One training seed and one evaluation seed are used.
+- Only 20 puzzles per removal rate are evaluated.
+- Runtime is machine- and load-dependent.
+- Model hyperparameters and Beam scoring are not tuned.
+- Raw probabilities are used without calibration.
+- Widths greater than four are not evaluated systematically.
+- Generated states include deterministic placements and are not equivalent to classical backtracks.
+
+### Next Step
+
+Repeat the Beam comparison across several seeds and consider candidate-normalized or calibrated path scores. This will show whether the observed Gradient Boosting and Beam-width advantages are stable rather than specific to one generated puzzle collection.
+
+### Conclusion
+
+Beam Search substantially closes the reliability gap between Greedy ML and Hybrid backtracking. Histogram Gradient Boosting with width 4 is the strongest bounded Model-only configuration, reaching 90% exact match at 65% removal, but full Hybrid and classical search remain the only completely reliable approaches in this experiment.
