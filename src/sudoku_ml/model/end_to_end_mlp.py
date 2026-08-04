@@ -68,6 +68,23 @@ class SudokuEndToEndMLP:
         """Return the digit classes learned by the MLP."""
         return self.model.classes_
 
+    @property
+    def iterations(self) -> int:
+        """Return the number of completed optimizer iterations."""
+        return int(
+            self.model.named_steps["mlpclassifier"].n_iter_
+        )
+
+    @property
+    def loss_curve(self) -> tuple[float, ...]:
+        """Return the training loss recorded after each iteration."""
+        return tuple(
+            float(value)
+            for value in self.model.named_steps[
+                "mlpclassifier"
+            ].loss_curve_
+        )
+
     def predict_probabilities(self, grids: np.ndarray) -> np.ndarray:
         """Return digit probabilities with shape (samples, 81, classes)."""
         features = self._create_cell_features(grids)

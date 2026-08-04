@@ -1354,3 +1354,33 @@ The first evaluation produces:
 The MLP performs approximately like random digit ranking on unseen source solutions. Nearly every row, column, and block is invalid. Preserved clues result from explicit copying rather than learned behavior.
 
 Training also reaches the configured limit of 100 iterations without convergence. More iterations may improve optimization, but the near-random test result and almost universal rule violations indicate a representational and data-efficiency problem rather than only an early stopping point.
+
+## End-to-End MLP Learning Curve
+
+The learning-curve evaluation keeps one test partition fixed and selects nested source-solution families from the training partition. Every point trains a fresh MLP with identical architecture, iteration limit, and random seed.
+
+```text
+Fixed train partition
+        |
+        +-- first 50 solution families  --> MLP 1
+        +-- first 100 solution families --> MLP 2
+        +-- first 200 solution families --> MLP 3
+        +-- first 400 solution families --> MLP 4
+
+Fixed test partition <---------------- evaluate every MLP
+```
+
+The result separates memorization from generalization:
+
+| Source solutions | Train accuracy | Test accuracy | Accuracy gap | Train exact | Test exact |
+|---:|---:|---:|---:|---:|---:|
+| 50 | 100.00% | 11.34% | 88.66% | 100.00% | 0.00% |
+| 100 | 99.46% | 11.39% | 88.06% | 80.00% | 0.00% |
+| 200 | 68.46% | 11.58% | 56.88% | 0.00% | 0.00% |
+| 400 | 45.13% | 11.74% | 33.38% | 0.00% | 0.00% |
+
+Small datasets are memorized almost perfectly. The 50-solution model reconstructs every training grid as a valid Sudoku but remains at random accuracy on unseen solution families. This confirms that the solution-level split successfully prevents memorized grids from inflating test performance.
+
+As the dataset grows, fixed model capacity and 100 optimizer iterations are no longer sufficient to memorize all training samples. Training accuracy falls and final loss rises, but test accuracy remains effectively unchanged. More examples alone therefore do not produce general Sudoku reasoning in this architecture.
+
+All four models reach the 100-iteration limit and emit `ConvergenceWarning`. Non-convergence contributes to the larger-dataset underfitting, but it cannot explain why the fully memorized 50-solution model also performs randomly on the fixed test set.

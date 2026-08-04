@@ -333,6 +333,16 @@ Trains a position-conditioned MLP directly from incomplete full grids. The model
 
 The first baseline reaches 11.74% accuracy and 33.91% Top-3 accuracy on empty cells, approximately the random baselines of 11.11% and 33.33%. It produces no exact or valid solutions and violates an average of 26.89 out of 27 Sudoku row, column, and block units. This shows that a generic MLP does not learn the combinatorial Sudoku rules from the current dataset and representation.
 
+### Evaluate the End-to-End MLP Learning Curve
+
+```bash
+python scripts/evaluate_end_to_end_learning_curve.py
+```
+
+Trains separate MLPs on 50, 100, 200, and 400 source solutions while keeping the test partition fixed. The report compares optimization, training and test accuracy, complete-grid quality, and rule violations.
+
+With 50 source solutions, the MLP reaches 100% training accuracy and solves every training grid, but achieves only 11.34% accuracy and no valid solutions on unseen grids. Increasing the training set to 400 solutions reduces memorization without improving test accuracy beyond 11.74%. The experiment demonstrates that the baseline memorizes small solution collections but does not learn a general Sudoku-solving procedure.
+
 ### Analyze Model Probability Rankings
 
 ```bash

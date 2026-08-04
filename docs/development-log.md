@@ -4419,3 +4419,117 @@ Before increasing model complexity, add training-set metrics and a learning curv
 ### Conclusion
 
 The first genuine model-only baseline does not solve Sudoku and performs approximately at random on hidden cells. This negative result is informative: direct prediction requires substantially more data, stronger optimization, or an architecture that represents relationships between rows, columns, blocks, and output cells.
+
+---
+## Commit 44 - End-to-End MLP Learning Curve
+
+**Commit:** `feat: analyze end-to-end MLP learning behavior`
+
+### Objective
+
+Determine whether the near-random End-to-End MLP result is caused by insufficient optimization, memorization, limited training data, or poor generalization.
+
+### Experimental Design
+
+One leakage-safe split with 500 source solutions is generated. Its test partition remains fixed while new MLP instances are trained on nested subsets containing 50, 100, 200, and 400 training solution families.
+
+Every model uses:
+
+```text
+Hidden layers: 128, 64
+Maximum iterations: 100
+Random seed: 42
+Removal rates: 50%, 60%, 65%
+```
+
+Convergence warnings are captured as structured results rather than printed repeatedly. Initial loss, final loss, completed iterations, and training duration describe optimizer behavior.
+
+### Implemented
+
+- Added MLP iteration access.
+- Added immutable loss-curve access.
+- Added nested solution-family training subsets.
+- Added a fixed test partition for every curve point.
+- Added training and test evaluation.
+- Added accuracy-gap calculation.
+- Added convergence-warning capture.
+- Added optimization and complete-grid reports.
+- Added learning-curve validation and tests.
+
+### Usage
+
+```bash
+python scripts/evaluate_end_to_end_learning_curve.py
+```
+
+### Optimization and Accuracy
+
+| Solutions | Samples | Seconds | Iterations | Converged | Initial loss | Final loss | Train | Test | Gap |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 50 | 150 | 3.11 | 100 | no | 2.3252 | 0.0131 | 100.00% | 11.34% | 88.66% |
+| 100 | 300 | 6.17 | 100 | no | 2.2838 | 0.1313 | 99.46% | 11.39% | 88.06% |
+| 200 | 600 | 12.27 | 100 | no | 2.2551 | 1.0568 | 68.46% | 11.58% | 56.88% |
+| 400 | 1,200 | 23.85 | 100 | no | 2.2307 | 1.6042 | 45.13% | 11.74% | 33.38% |
+
+All models reach the maximum iteration count. Training duration grows approximately linearly with the number of full-grid samples.
+
+The final loss rises with dataset size because the fixed-capacity model and fixed iteration budget can no longer fit the larger collection. This is not evidence that more data worsens generalization: test accuracy stays close to the same random baseline throughout.
+
+### Complete-Grid Quality
+
+| Solutions | Train exact | Test exact | Train valid | Test valid | Train violations | Test violations |
+|---:|---:|---:|---:|---:|---:|---:|
+| 50 | 100.00% | 0.00% | 100.00% | 0.00% | 0.00 | 26.92 |
+| 100 | 80.00% | 0.00% | 80.00% | 0.00% | 0.74 | 26.92 |
+| 200 | 0.00% | 0.00% | 0.00% | 0.00% | 22.07 | 26.92 |
+| 400 | 0.00% | 0.00% | 0.00% | 0.00% | 25.83 | 26.89 |
+
+### Interpretation
+
+The 50-solution model learns its training collection perfectly. It predicts every removed training cell correctly and reconstructs every training Sudoku as a valid complete grid. Its 11.34% test accuracy shows that this behavior is memorization, not a learned Sudoku algorithm.
+
+The 100-solution model also nearly memorizes individual cells, but accumulated cell errors reduce complete-grid accuracy to 80%. This demonstrates how small local error rates translate into larger exact-solution losses.
+
+With 200 and 400 solutions, the model underfits its training data under the fixed capacity and iteration budget. Nevertheless, the unchanged test accuracy shows no evidence that the MLP is beginning to generalize Sudoku constraints.
+
+Test rule violations remain close to the maximum of 27 for every dataset size. The architecture continues to make uncoordinated output decisions on unseen grids.
+
+### Testing
+
+The tests cover:
+
+- requested learning-curve points,
+- nested training-solution counts,
+- full-grid sample counts,
+- optimization duration and iterations,
+- loss values,
+- training and test metric ranges,
+- accuracy-gap calculation,
+- fixed test-partition size,
+- captured non-convergence,
+- empty, unavailable, unsorted, and duplicate sizes.
+
+Results:
+
+```text
+Learning-curve tests: 9 passed
+Full suite: 298 passed
+```
+
+### Limitations
+
+- Only one architecture and optimizer configuration are evaluated.
+- Every model is limited to 100 iterations.
+- Training and test curves use one dataset seed.
+- The largest training subset contains only 400 source solutions.
+- No validation-based early stopping is used.
+- Cell outputs remain independently classified.
+- The experiment does not separate architecture capacity from optimization budget at larger sizes.
+
+### Next Step
+
+Move from a generic position-conditioned MLP to a structured neural representation that shares information according to Sudoku rows, columns, and blocks. First establish a framework and tensor interface for joint 81×9 outputs, then compare it against this fixed baseline.
+
+### Conclusion
+
+The learning curve demonstrates memorization on small datasets and underfitting on larger datasets, but no generalization to unseen Sudoku solutions. Increasing dataset size alone is insufficient. The next model must encode or learn relationships between cells rather than treating complete-grid prediction as independent position-conditioned classification.
