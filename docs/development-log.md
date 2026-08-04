@@ -4298,3 +4298,124 @@ Build a simple multi-layer perceptron baseline that maps 81 input cell values to
 ### Conclusion
 
 The project now has a reproducible and leakage-safe foundation for genuine full-grid prediction. The next model will receive the incomplete Sudoku directly and predict all cell values without relying on the existing 118-feature single-cell representation.
+
+---
+## Commit 43 - End-to-End MLP Baseline
+
+**Commit:** `feat: add end-to-end MLP baseline`
+
+### Objective
+
+Establish the first direct model baseline that predicts every Sudoku position from the incomplete full grid without candidate filtering or search.
+
+### Model Design
+
+The baseline uses one shared scikit-learn `MLPClassifier`. Each cell prediction receives:
+
+```text
+81 flattened input-grid values
++
+81 one-hot target-position values
+=
+162 MLP input features
+```
+
+The model returns probabilities for digits 1 through 9. Applying it to all 81 positions produces `(samples, 81, 9)` probabilities and a predicted 9×9 grid.
+
+Training samples are created only for originally empty cells. Given clues are restored in the final output, but no Sudoku candidates, logical rules, MRV heuristic, iterative prediction, Beam Search, or backtracking are used.
+
+### Implemented
+
+- Added a position-conditioned end-to-end MLP.
+- Added full-grid probability prediction.
+- Added direct complete-grid prediction.
+- Added explicit clue preservation.
+- Added empty-cell accuracy and Top-3 accuracy.
+- Added exact-solution and valid-solution rates.
+- Added incorrect-cell counts.
+- Added row, column, and block violation counts.
+- Added model and evaluation tests.
+- Added an executable baseline experiment.
+
+### Evaluation Configuration
+
+```text
+Source solutions: 500
+Removal rates: 50%, 60%, 65%
+Train/test split: 80% / 20% by solution ID
+Training samples: 1,200 full grids
+Test samples: 300 full grids
+Hidden layers: 128, 64
+Maximum iterations: 100
+Random seed: 42
+Candidate filtering: none
+Search: none
+```
+
+### Result
+
+```text
+End-to-End Sudoku MLP Baseline
+------------------------------
+Training samples:             1200
+Test samples:                 300
+Empty-cell accuracy:          11.74%
+Empty-cell Top-3 accuracy:    33.91%
+Exact solution rate:          0.00%
+Valid solution rate:          0.00%
+Clue preservation rate:       100.00%
+Average incorrect empty cells: 41.19
+Average rule violations:       26.89
+```
+
+The optimizer reaches 100 iterations without convergence.
+
+### Interpretation
+
+Uniform random prediction among nine digits has expected Top-1 accuracy of approximately 11.11% and Top-3 accuracy of 33.33%. The measured 11.74% and 33.91% results are only marginally higher. The MLP has therefore learned little transferable Sudoku structure.
+
+The model predicts each target position from the shared input but does not coordinate its 81 output decisions. This independence is visible in the average 26.89 violated units out of a maximum of 27. Almost every row, column, and block contains duplicate digits.
+
+The 100% clue-preservation rate is enforced by copying nonzero input values into the output. It does not measure learned reconstruction ability.
+
+Failure to converge may contribute to underfitting, but increasing iterations alone is unlikely to teach a generic MLP the algorithmic constraint propagation required by Sudoku. The result establishes a valuable lower baseline for more structured approaches.
+
+### Testing
+
+The tests cover:
+
+- probability tensor shape,
+- normalized digit probabilities,
+- all nine learned classes,
+- complete-grid prediction shape,
+- valid digit ranges,
+- clue preservation,
+- bounded evaluation metrics,
+- zero violations for valid solutions,
+- row, column, and block violation detection,
+- invalid input shapes.
+
+Result:
+
+`289 passed`
+
+The deliberately small test model uses 20 iterations. Its expected convergence warning is suppressed only in the test module; warnings remain visible in the real experiment.
+
+### Limitations
+
+- Training stops before optimizer convergence.
+- Only 500 source solutions are used.
+- Outputs are predicted independently rather than jointly constrained.
+- Cell position is encoded explicitly.
+- Given clues are preserved through postprocessing.
+- No validation split or hyperparameter tuning is used.
+- No probability calibration is applied.
+- The model architecture does not encode Sudoku topology.
+
+### Next Step
+
+Before increasing model complexity, add training-set metrics and a learning curve across dataset sizes. This will distinguish optimization failure, memorization, and insufficient generalization. A later structured model can then be compared against the same direct baseline.
+
+### Conclusion
+
+The first genuine model-only baseline does not solve Sudoku and performs approximately at random on hidden cells. This negative result is informative: direct prediction requires substantially more data, stronger optimization, or an architecture that represents relationships between rows, columns, blocks, and output cells.

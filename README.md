@@ -323,6 +323,16 @@ Each generated solution produces one puzzle for every configured removal rate. T
 
 With 100 source solutions, removal rates of 50%, 60%, and 65%, and a 20% test split, the dataset contains 240 training samples and 60 test samples. No solution IDs overlap, and input and target arrays do not share memory.
 
+### Evaluate the End-to-End MLP Baseline
+
+```bash
+python scripts/evaluate_end_to_end_mlp.py
+```
+
+Trains a position-conditioned MLP directly from incomplete full grids. The model receives the flattened 9×9 grid and a one-hot target-cell position, then predicts one of nine digits. All 81 positions are evaluated as a batch, while original clues are copied unchanged into the final prediction.
+
+The first baseline reaches 11.74% accuracy and 33.91% Top-3 accuracy on empty cells, approximately the random baselines of 11.11% and 33.33%. It produces no exact or valid solutions and violates an average of 26.89 out of 27 Sudoku row, column, and block units. This shows that a generic MLP does not learn the combinatorial Sudoku rules from the current dataset and representation.
+
 ### Analyze Model Probability Rankings
 
 ```bash

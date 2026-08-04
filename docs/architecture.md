@@ -1304,3 +1304,53 @@ The train/test split shuffles unique solution IDs rather than individual samples
 Inputs and targets are copied into independent NumPy arrays. This protects complete targets from accidental modification when puzzles are transformed during later preprocessing or iterative prediction.
 
 The inspection reports 40, 48, and 52 removed cells for rates 50%, 60%, and 65%. Their balanced mean is 46.67 empty cells per sample. Training and test partitions contain zero shared solution IDs.
+
+## End-to-End MLP Baseline
+
+The first full-grid baseline uses one shared `MLPClassifier`. Scikit-learn does not provide a native 81-position, nine-class output head in the same form as a neural-network framework, so the model reformulates every hidden cell as a position-conditioned training example.
+
+```text
+Incomplete 9 x 9 grid       Target position
+        81 values      +    81-value one-hot vector
+                  \          /
+                   \        /
+                    162 inputs
+                         |
+                         v
+                    shared MLP
+                         |
+                         v
+                9 digit probabilities
+```
+
+Only originally empty cells become training targets. During prediction, the same incomplete grid is combined with all 81 position vectors, producing an array with shape `(samples, 81, 9)`. The highest-probability digit is selected independently at every position, and given clues are restored unchanged.
+
+The approach uses no candidate filtering, MRV selection, iterative correction, Beam Search, or backtracking. It is therefore a direct model baseline, although clue preservation is enforced as output postprocessing.
+
+The evaluation distinguishes local and global quality:
+
+- accuracy on originally empty cells,
+- Top-3 accuracy on originally empty cells,
+- exact complete-grid match,
+- valid Sudoku rate,
+- clue preservation,
+- incorrect empty cells per puzzle,
+- violated row, column, and block units.
+
+There are 27 Sudoku units: nine rows, nine columns, and nine blocks. A unit counts as violated when its nine predicted values do not contain nine distinct digits.
+
+The first evaluation produces:
+
+| Metric | Result | Random reference |
+|---|---:|---:|
+| Empty-cell accuracy | 11.74% | 11.11% |
+| Empty-cell Top-3 accuracy | 33.91% | 33.33% |
+| Exact solution rate | 0.00% | — |
+| Valid solution rate | 0.00% | — |
+| Clue preservation rate | 100.00% | — |
+| Incorrect empty cells | 41.19 | — |
+| Rule violations | 26.89 of 27 | — |
+
+The MLP performs approximately like random digit ranking on unseen source solutions. Nearly every row, column, and block is invalid. Preserved clues result from explicit copying rather than learned behavior.
+
+Training also reaches the configured limit of 100 iterations without convergence. More iterations may improve optimization, but the near-random test result and almost universal rule violations indicate a representational and data-efficiency problem rather than only an early stopping point.
