@@ -1384,3 +1384,56 @@ Small datasets are memorized almost perfectly. The 50-solution model reconstruct
 As the dataset grows, fixed model capacity and 100 optimizer iterations are no longer sufficient to memorize all training samples. Training accuracy falls and final loss rises, but test accuracy remains effectively unchanged. More examples alone therefore do not produce general Sudoku reasoning in this architecture.
 
 All four models reach the 100-iteration limit and emit `ConvergenceWarning`. Non-convergence contributes to the larger-dataset underfitting, but it cannot explain why the fully memorized 50-solution model also performs randomly on the fixed test set.
+
+## PyTorch Data and Device Foundation
+
+The structured neural-network phase uses PyTorch tensors rather than NumPy arrays during model execution. `TorchSudokuDataset` adapts the existing leakage-safe `EndToEndDataset` without regenerating data or changing its split.
+
+Every integer input grid is converted to ten one-hot channels:
+
+```text
+Input value 0 --> channel 0: empty
+Input value 1 --> channel 1: digit 1
+...
+Input value 9 --> channel 9: digit 9
+```
+
+Tensor shapes returned for one sample are:
+
+```text
+input:      (10, 9, 9), float32
+target:      (9, 9),    int64
+empty mask:  (9, 9),    bool
+```
+
+Targets are shifted from Sudoku digits `1–9` to class indices `0–8`, matching the requirements of PyTorch cross-entropy loss. The original complete targets remain unchanged in the NumPy dataset.
+
+`create_torch_data_loaders()` batches these tensors as:
+
+```text
+input:      (batch, 10, 9, 9)
+target:     (batch, 9, 9)
+empty mask: (batch, 9, 9)
+```
+
+Training data is shuffled with a seeded `torch.Generator`. Test data retains stable ordering. The default worker count is zero, which avoids Windows multiprocessing complexity during the initial learning phase.
+
+Device selection is centralized:
+
+```text
+prefer_cuda=True and CUDA available --> cuda
+otherwise                           --> cpu
+```
+
+Both model and batch tensors will use the returned `torch.device` in the next commit. The current environment reports:
+
+```text
+PyTorch version: 2.13.0+cu130
+CUDA build: 13.0
+CUDA available: True
+Device: NVIDIA GeForce RTX 3060 Ti
+GPU memory: 8.00 GiB
+Test tensor device: cuda:0
+```
+
+The successful matrix multiplication on `cuda:0` confirms actual GPU execution rather than only driver detection.

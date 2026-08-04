@@ -16,6 +16,7 @@ dependencies = [
     "scikit-learn",
     "matplotlib",
     "joblib",
+    "torch>=2.13,<2.14",
 ]
 
 [project.scripts]

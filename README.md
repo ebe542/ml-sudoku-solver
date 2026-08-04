@@ -333,6 +333,27 @@ Trains a position-conditioned MLP directly from incomplete full grids. The model
 
 The first baseline reaches 11.74% accuracy and 33.91% Top-3 accuracy on empty cells, approximately the random baselines of 11.11% and 33.33%. It produces no exact or valid solutions and violates an average of 26.89 out of 27 Sudoku row, column, and block units. This shows that a generic MLP does not learn the combinatorial Sudoku rules from the current dataset and representation.
 
+### Configure PyTorch and CUDA
+
+PyTorch is used for the structured neural-network phase. The code automatically selects CUDA when available and otherwise falls back to CPU.
+
+For an NVIDIA system, install the CUDA wheel appropriate for the installed driver. The current development environment uses PyTorch 2.13 with CUDA 13.0:
+
+```bash
+python -m pip install \
+  --force-reinstall \
+  "torch==2.13.0+cu130" \
+  --index-url https://download.pytorch.org/whl/cu130
+```
+
+Inspect the selected environment:
+
+```bash
+python scripts/check_torch_environment.py
+```
+
+The end-to-end adapter encodes each grid as a `(10, 9, 9)` tensor. Channel 0 represents empty cells and channels 1–9 represent Sudoku digits. Targets use zero-based classes from 0 to 8, and a Boolean mask identifies originally empty cells.
+
 ### Evaluate the End-to-End MLP Learning Curve
 
 ```bash

@@ -4533,3 +4533,151 @@ Move from a generic position-conditioned MLP to a structured neural representati
 ### Conclusion
 
 The learning curve demonstrates memorization on small datasets and underfitting on larger datasets, but no generalization to unseen Sudoku solutions. Increasing dataset size alone is insufficient. The next model must encode or learn relationships between cells rather than treating complete-grid prediction as independent position-conditioned classification.
+
+---
+## Commit 45 - PyTorch Data and CUDA Foundation
+
+**Commit:** `feat: add PyTorch data and device foundation`
+
+### Objective
+
+Prepare a device-independent PyTorch input pipeline for structured neural Sudoku models and verify real CUDA execution on the available NVIDIA GPU.
+
+### Motivation
+
+The scikit-learn MLP predicts cells through separate position-conditioned samples and cannot conveniently express a joint `(batch, 9, 9, 9)` output or custom structured losses. PyTorch provides direct tensor control, shared convolutional architectures, masked loss functions, mini-batch training, checkpoints, and GPU acceleration.
+
+### Environment
+
+The development system contains:
+
+```text
+GPU: NVIDIA GeForce RTX 3060 Ti
+GPU memory: 8 GiB
+NVIDIA driver: 596.49
+Driver CUDA support: 13.2
+Python: 3.13
+PyTorch: 2.13.0+cu130
+PyTorch CUDA build: 13.0
+```
+
+The first regular PyPI installation selected `2.13.0+cpu`. It was replaced with the official CUDA 13.0 wheel:
+
+```bash
+python -m pip install \
+  --force-reinstall \
+  "torch==2.13.0+cu130" \
+  --index-url https://download.pytorch.org/whl/cu130
+```
+
+The project dependency remains version-based so CPU installations continue to work. CUDA users may need the explicit PyTorch wheel index appropriate for their system.
+
+### Tensor Encoding
+
+Input grids use ten one-hot channels:
+
+| Channel | Meaning |
+|---:|---|
+| 0 | empty cell |
+| 1–9 | corresponding Sudoku digit |
+
+One sample contains:
+
+```text
+Input:      (10, 9, 9), torch.float32
+Target:      (9, 9),    torch.int64
+Empty mask:  (9, 9),    torch.bool
+```
+
+Target digits are shifted from `1–9` to class indices `0–8`. This allows a future model to produce logits with shape `(batch, 9, 9, 9)` for `CrossEntropyLoss`.
+
+### DataLoader Design
+
+- Training batches are shuffled reproducibly.
+- Test batches retain fixed order.
+- Batch size is configurable and validated.
+- Worker count is configurable and non-negative.
+- The default worker count is zero for reliable Windows execution.
+- The existing solution-level train/test separation is preserved.
+
+### Device Selection
+
+`select_device()` chooses CUDA only when it is preferred and available. Otherwise, it returns CPU. This keeps the same training code functional on systems without an NVIDIA GPU.
+
+`get_device_info()` reports:
+
+- selected `torch.device`,
+- device name,
+- CUDA availability,
+- PyTorch CUDA build,
+- total GPU memory where applicable.
+
+### Implemented
+
+- Added PyTorch as a project dependency.
+- Added the full-grid PyTorch Dataset adapter.
+- Added ten-channel one-hot encoding.
+- Added zero-based target classes.
+- Added empty-cell mask tensors.
+- Added reproducible train and stable test DataLoaders.
+- Added automatic CUDA/CPU device selection.
+- Added device metadata.
+- Added an environment and tensor-computation script.
+- Added Dataset, DataLoader, device, and fallback tests.
+
+### Environment Check
+
+```text
+PyTorch Environment
+-------------------
+PyTorch version:  2.13.0+cu130
+CUDA build:       13.0
+CUDA available:   True
+Selected device:  cuda
+Device name:      NVIDIA GeForce RTX 3060 Ti
+GPU memory:       8.00 GiB
+Tensor device:    cuda:0
+Tensor result:    [[2.0, 2.0], [2.0, 2.0]]
+```
+
+The output confirms that the matrix multiplication runs on `cuda:0` and produces the expected result.
+
+### Testing
+
+The new tests cover:
+
+- tensor shapes and dtypes,
+- exact one-hot decoding,
+- zero-based targets,
+- empty-mask consistency,
+- batched DataLoader shapes,
+- Dataset lengths,
+- invalid batch sizes,
+- invalid worker counts,
+- forced CPU selection,
+- automatic CUDA selection,
+- device metadata.
+
+Results:
+
+```text
+PyTorch foundation tests: 11 passed
+Full suite: 309 passed
+```
+
+### Limitations
+
+- No PyTorch neural model exists yet.
+- Data remains generated eagerly in memory.
+- DataLoader workers default to zero.
+- CUDA installation depends on platform and driver compatibility.
+- GPU acceleration may not benefit very small models or batches.
+- Mixed-precision training is not yet implemented.
+
+### Next Step
+
+Implement a small convolutional network with joint logits for all 81 cells, masked cross-entropy on empty cells, and a device-independent training and validation loop.
+
+### Conclusion
+
+The project now has a tested PyTorch tensor pipeline with transparent CPU fallback and verified CUDA execution. This provides the technical foundation for a structured CNN that predicts the complete Sudoku grid jointly on the RTX 3060 Ti.
