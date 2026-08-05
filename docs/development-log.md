@@ -653,7 +653,7 @@ Sudoku solution
 Run the grouped cross-validation evaluation from the project root:
 
 ```bash
-python scripts/evaluate_group_cross_validation.py
+python scripts/evaluation/evaluate_group_cross_validation.py
 ```
 
 ### Evaluation Configuration
@@ -775,7 +775,7 @@ Evaluate the complete hybrid system rather than measuring only cell-level digit 
 Run the evaluation from the project root:
 
 ```bash
-python scripts/evaluate_solver.py
+python scripts/evaluation/evaluate_solver.py
 ```
 
 ### Evaluation Configuration
@@ -865,7 +865,7 @@ Classical solver  -> ascending numerical digit order
 Run the comparison from the project root:
 
 ```bash
-python scripts/compare_solvers.py
+python scripts/evaluation/compare_solvers.py
 ```
 
 ### Evaluation Configuration
@@ -949,7 +949,7 @@ Removal rate is used as a reproducible proxy for difficulty. It is not a formal 
 Run the experiment from the project root:
 
 ```bash
-python scripts/evaluate_difficulty_levels.py
+python scripts/evaluation/evaluate_difficulty_levels.py
 ```
 
 ### Evaluation Configuration
@@ -1062,7 +1062,7 @@ Predict without retraining
 Train and save the default model:
 
 ```bash
-python scripts/train_model.py
+python scripts/training/train_model.py
 ```
 
 The generated artifact is stored at:
@@ -1179,7 +1179,7 @@ Print solution and statistics
 Train the default model if it does not exist yet:
 
 ```bash
-python scripts/train_model.py
+python scripts/training/train_model.py
 ```
 
 Solve a Sudoku:
@@ -1433,7 +1433,7 @@ Training remains on the original faster random-removal dataset. Only evaluation 
 Run the experiment from the project root:
 
 ```bash
-python scripts/evaluate_unique_solvers.py
+python scripts/evaluation/evaluate_unique_solvers.py
 ```
 
 ### Evaluation Configuration
@@ -1553,7 +1553,7 @@ Population standard deviation describes the spread of the selected runs. It is n
 Run the repeated experiment from the project root:
 
 ```bash
-python scripts/evaluate_repeated_solvers.py
+python scripts/evaluation/evaluate_repeated_solvers.py
 ```
 
 ### Evaluation Configuration
@@ -1702,7 +1702,7 @@ These levels are not official Sudoku ratings. They approximate computational sea
 Run the analysis from the project root:
 
 ```bash
-python scripts/analyze_puzzle_difficulty.py
+python scripts/analysis/analyze_puzzle_difficulty.py
 ```
 
 ### Evaluation Configuration
@@ -1982,7 +1982,7 @@ The only experimental difference is backtracking.
 Run the experiment from the project root:
 
 ```bash
-python scripts/evaluate_greedy_solver.py
+python scripts/evaluation/evaluate_greedy_solver.py
 ```
 
 ### Evaluation Configuration
@@ -2139,7 +2139,7 @@ Higher values are better for Top-k accuracy and mean reciprocal rank. Lower valu
 Run the analysis from the project root:
 
 ```bash
-python scripts/evaluate_probability_ranking.py
+python scripts/analysis/evaluate_probability_ranking.py
 ```
 
 ### Evaluation Configuration
@@ -2276,7 +2276,7 @@ Only the number of feature columns differs. The evaluation uses raw model probab
 Run the experiment from the project root:
 
 ```bash
-python scripts/evaluate_feature_ablation.py
+python scripts/analysis/evaluate_feature_ablation.py
 ```
 
 ### Evaluation Configuration
@@ -2404,7 +2404,7 @@ Unlike the earlier repeated solver experiment, the model is not held constant ac
 Run the experiment from the project root:
 
 ```bash
-python scripts/evaluate_repeated_feature_ablation.py
+python scripts/analysis/evaluate_repeated_feature_ablation.py
 ```
 
 ### Evaluation Configuration
@@ -2552,7 +2552,7 @@ This separation is essential because measuring probability quality on the calibr
 Run the experiment from the project root:
 
 ```bash
-python scripts/evaluate_probability_calibration.py
+python scripts/analysis/evaluate_probability_calibration.py
 ```
 
 ### Evaluation Configuration
@@ -2686,7 +2686,7 @@ The constraint function now replaces zero-mass rows with equal weights for every
 Run the full experiment from the project root:
 
 ```bash
-python scripts/evaluate_repeated_probability_calibration.py
+python scripts/analysis/evaluate_repeated_probability_calibration.py
 ```
 
 ### Evaluation Configuration
@@ -2845,7 +2845,7 @@ Only the learning algorithm changes. This isolates classifier choice from data-g
 Run the experiment from the project root:
 
 ```bash
-python scripts/evaluate_model_comparison.py
+python scripts/analysis/evaluate_model_comparison.py
 ```
 
 ### Evaluation Configuration
@@ -2999,7 +2999,7 @@ For every removal rate and seed, the evaluation:
 Run the experiment from the project root:
 
 ```bash
-python scripts/evaluate_repeated_model_comparison.py
+python scripts/analysis/evaluate_repeated_model_comparison.py
 ```
 
 ### Evaluation Configuration
@@ -3169,7 +3169,7 @@ The only experimental difference is the probability model used to rank valid can
 Run the experiment from the project root:
 
 ```bash
-python scripts/evaluate_solver_models.py
+python scripts/evaluation/evaluate_solver_models.py
 ```
 
 ### Evaluation Configuration
@@ -3309,7 +3309,7 @@ The interface mirrors `SudokuRandomForest`, which keeps model use predictable wh
 Train and store the model from the project root:
 
 ```bash
-python scripts/train_histogram_gradient_boosting.py
+python scripts/training/train_histogram_gradient_boosting.py
 ```
 
 The generated artifact is stored at:
@@ -3625,7 +3625,7 @@ Stopping at the first mismatch prevents later consequences of an earlier wrong c
 Run from the project root:
 
 ```bash
-python scripts/analyze_model_only_errors.py
+python scripts/analysis/analyze_model_only_errors.py
 ```
 
 ### Evaluation Configuration
@@ -3876,7 +3876,7 @@ The only changing factors within a puzzle collection are probability model and s
 ### Usage
 
 ```bash
-python scripts/evaluate_beam_search.py
+python scripts/evaluation/evaluate_beam_search.py
 ```
 
 ### Evaluation Configuration
@@ -4025,7 +4025,7 @@ The comparison focuses on removal rates 60% and 65%, where model decisions are r
 ### Usage
 
 ```bash
-python scripts/evaluate_repeated_beam_search.py
+python scripts/evaluation/evaluate_repeated_beam_search.py
 ```
 
 ### Evaluation Configuration
@@ -4216,7 +4216,7 @@ split = create_end_to_end_train_test_split(
 Inspect the configured dataset:
 
 ```bash
-python scripts/inspect_end_to_end_dataset.py
+python scripts/dataset/inspect_end_to_end_dataset.py
 ```
 
 ### Inspection Result
@@ -4459,7 +4459,7 @@ Convergence warnings are captured as structured results rather than printed repe
 ### Usage
 
 ```bash
-python scripts/evaluate_end_to_end_learning_curve.py
+python scripts/evaluation/evaluate_end_to_end_learning_curve.py
 ```
 
 ### Optimization and Accuracy
@@ -4681,3 +4681,160 @@ Implement a small convolutional network with joint logits for all 81 cells, mask
 ### Conclusion
 
 The project now has a tested PyTorch tensor pipeline with transparent CPU fallback and verified CUDA execution. This provides the technical foundation for a structured CNN that predicts the complete Sudoku grid jointly on the RTX 3060 Ti.
+
+---
+## Commit 46 - Test Suite Organization
+
+**Commit:** `test: organize tests by project area`
+
+### Objective
+
+Keep the growing test suite understandable before adding the first structured PyTorch model.
+
+### Motivation
+
+After the PyTorch data and CUDA foundation, the project contained 38 test modules in one directory. The flat layout made it increasingly difficult to associate tests with the corresponding production modules. A clearer structure reduces navigation overhead and provides room for the upcoming neural-network tests.
+
+### Implemented
+
+The test modules were moved without changing their contents into the following project areas:
+
+- `tests/analysis/`
+- `tests/data/`
+- `tests/dataset/`
+- `tests/evaluation/`
+- `tests/model/`
+- `tests/preprocessing/`
+- `tests/solver/`
+- `tests/training/`
+
+Tests for the CLI, grid representation, solution counter, and Sudoku generator remain directly in `tests/` because they belong to the project-wide interface or core domain.
+
+### Result
+
+All existing tests continued to pass after the move. The commit changes organization only and does not alter solver, model, dataset, or evaluation behavior.
+
+### Relevance to the Neural-Network Work
+
+The next structured model will require tests for architecture, tensor shapes, loss calculation, training behavior, checkpoint handling, and CPU/CUDA compatibility. The thematic layout gives those tests a clear location and keeps the neural-network work separate from classical model and solver tests.
+
+### Conclusion
+
+This maintenance commit creates a scalable test structure before the next modeling phase. It deliberately adds no new experiment and therefore forms part of the engineering bridge between the PyTorch foundation and the future neural Sudoku model.
+
+---
+## Commit 47 - Evaluation Import Fix and Milestone Verification
+
+**Commit:** `fix: correct evaluation script imports`
+
+### Objective
+
+Repair a stale evaluation-script import and introduce a repeatable project-wide verification step for milestone completion.
+
+### Problem
+
+The group cross-validation implementation had moved to `sudoku_ml.evaluation`, while its executable script still imported it from `sudoku_ml.analysis`. The unit tests remained green because they imported the implementation directly and did not start the script:
+
+```text
+ModuleNotFoundError: No module named 'sudoku_ml.analysis.group_cross_validation'
+```
+
+This demonstrated that a passing unit-test suite alone did not guarantee that every command-line evaluation script was executable.
+
+### Implemented
+
+- Corrected the group cross-validation import to `sudoku_ml.evaluation.group_cross_validation`.
+- Added `scripts/check_milestone.sh` for Git Bash and Linux-compatible milestone verification.
+- Added automatic discovery of Python scripts.
+- Added an explicit exception list for training scripts that overwrite persisted model files.
+- Added syntax checks and execution of all non-training scripts.
+- Added compact progress reporting with remaining-check counts.
+- Added colored `PASS` and `FAIL` results.
+- Preserved failed-command output while suppressing successful script output.
+- Continued checking after individual failures and returned a failing exit code at the end.
+
+### Result
+
+The complete milestone check ran successfully. It now covers the gap between isolated unit tests and executable project workflows, including stale imports that are only visible when scripts are started.
+
+### Relevance to the Neural-Network Work
+
+Future neural experiments will add training, evaluation, device, and checkpoint scripts. The milestone check provides a single regression gate before and after those additions. Model-training scripts remain excluded because verification must not silently replace persisted models.
+
+### Next Step
+
+Resume the modeling track by implementing a small structured PyTorch network with joint `(batch, 9, 9, 9)` logits, masked cross-entropy on empty cells, and device-independent training and validation.
+
+### Conclusion
+
+Commits 46 and 47 intentionally focus on maintainability and executable-project reliability. Together they close the engineering gap after the PyTorch foundation and prepare a safer starting point for the next neural-network experiment.
+
+---
+## Commit 48 - Script Organization by Project Area
+
+**Commit:** `chore: organize scripts by project area`
+
+### Objective
+
+Apply the thematic organization introduced for the test suite to the growing collection of executable project scripts.
+
+### Motivation
+
+The `scripts/` directory contained 27 Python files for analysis, dataset inspection, evaluation, environment verification, and model training. A flat directory made related workflows harder to find and increased the chance of overlooking scripts during maintenance. Organizing scripts by responsibility aligns the executable tools with both `src/sudoku_ml/` and `tests/`.
+
+### Structure
+
+The scripts are now grouped as follows:
+
+```text
+scripts/
+├── analysis/
+├── dataset/
+├── evaluation/
+├── training/
+└── check_milestone.sh
+```
+
+- `analysis/` contains error analysis, feature studies, probability calibration, and classifier comparisons.
+- `dataset/` contains dataset inspection tools.
+- `evaluation/` contains solver, search-strategy, and end-to-end evaluations.
+- `training/` contains environment verification and model-training commands.
+- `check_milestone.sh` remains at the top level as the project-wide verification entry point.
+
+### Implemented
+
+- Moved all Python scripts into their corresponding project areas.
+- Preserved script contents and command-line behavior.
+- Updated every script command in `README.md`.
+- Updated every script command in the development log.
+- Added a script-organization overview to the README.
+- Changed milestone discovery from the top-level directory to recursive discovery.
+- Updated the milestone exception list with the new training-script paths.
+- Kept newly added Python scripts automatically included in future milestone checks.
+
+### Verification
+
+The restructuring was checked through:
+
+- recursive discovery of all 27 Python scripts,
+- syntax compilation of every script,
+- import smoke tests for every script,
+- validation of all internal `sudoku_ml` imports,
+- validation of every documented script path,
+- detection of obsolete flat script commands,
+- Git Bash syntax validation for the milestone script,
+- a successful complete milestone run.
+
+The milestone check selects 25 non-training scripts and excludes the two scripts that persist trained model files.
+
+### Result
+
+The project now uses consistent responsibility-based organization across source modules, tests, and executable scripts. New evaluation scripts can be added to the appropriate directory without manually extending the milestone check.
+
+### Next Step
+
+Return to the modeling track and implement the first structured PyTorch network. The initial experiment should produce joint logits with shape `(batch, 9, 9, 9)`, train with masked cross-entropy on empty cells, and run through the existing CPU/CUDA abstraction.
+
+### Conclusion
+
+Commit 48 completes the maintenance phase that followed the PyTorch foundation. The project structure, executable workflows, documentation, and regression checks are now prepared for the next neural-network experiment.

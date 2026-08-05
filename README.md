@@ -37,6 +37,16 @@ The project does not perform image recognition or OCR. The input is a structured
 - pytest
 - Jupyter
 
+## Script Organization
+
+The executable project scripts are grouped by purpose:
+
+- `scripts/analysis/` contains model and error analysis
+- `scripts/dataset/` contains dataset inspection tools
+- `scripts/evaluation/` contains solver and model evaluations
+- `scripts/training/` contains environment checks and model training
+- `scripts/check_milestone.sh` runs the complete milestone verification
+
 ## Disclaimer
 
 This is a self-directed educational project created for learning and portfolio purposes.
@@ -48,13 +58,13 @@ The project is experimental and is not intended to represent a production-grade 
 ### Baseline Evaluation
 
 ```bash
-python scripts/evaluate_baseline.py
+python scripts/evaluation/evaluate_baseline.py
 ```
 
 ### Error Analysis
 
 ```bash
-python scripts/analyze_errors.py
+python scripts/analysis/analyze_errors.py
 ```
 
 ### Feature Importance
@@ -66,7 +76,7 @@ python -m sudoku_ml.analysis.feature_importance
 ### Grouped Cross-Validation
 
 ```bash
-python scripts/evaluate_group_cross_validation.py
+python scripts/evaluation/evaluate_group_cross_validation.py
 ```
 
 Evaluates the model using solution-level groups to prevent related cell samples from appearing in both training and validation folds.
@@ -74,7 +84,7 @@ Evaluates the model using solution-level groups to prevent related cell samples 
 ### End-to-End Solver Evaluation
 
 ```bash
-python scripts/evaluate_solver.py
+python scripts/evaluation/evaluate_solver.py
 ```
 
 Trains the Random Forest and evaluates the complete hybrid solver on an independently generated set of Sudoku puzzles. The evaluation reports solution validity, runtime, deterministic steps, ML decisions, and backtracks.
@@ -82,7 +92,7 @@ Trains the Random Forest and evaluates the complete hybrid solver on an independ
 ### Solver Comparison
 
 ```bash
-python scripts/compare_solvers.py
+python scripts/evaluation/compare_solvers.py
 ```
 
 Compares ML-guided and ascending numerical candidate ordering on the same puzzles. At a removal rate of 0.65, ML guidance reduced backtracking by 56.9%, but the classical solver remained approximately 33 times faster.
@@ -90,7 +100,7 @@ Compares ML-guided and ascending numerical candidate ordering on the same puzzle
 ### Removal-Rate Evaluation
 
 ```bash
-python scripts/evaluate_difficulty_levels.py
+python scripts/evaluation/evaluate_difficulty_levels.py
 ```
 
 Compares both solver strategies at removal rates from 0.50 to 0.70. The report includes valid solution rates, runtime ratios, average backtracks, backtrack reduction, and average ML decisions per puzzle. Removal rate is treated as a proxy for difficulty rather than a formal Sudoku difficulty rating.
@@ -98,7 +108,7 @@ Compares both solver strategies at removal rates from 0.50 to 0.70. The report i
 ### Train and Save Models
 
 ```bash
-python scripts/train_model.py
+python scripts/training/train_model.py
 ```
 
 Trains the Random Forest, evaluates it on the hold-out test data, and stores the fitted estimator at `models/sudoku_random_forest.joblib`. Generated model artifacts are excluded from Git.
@@ -106,7 +116,7 @@ Trains the Random Forest, evaluates it on the hold-out test data, and stores the
 The stronger cell-level Histogram Gradient Boosting classifier can be trained separately:
 
 ```bash
-python scripts/train_histogram_gradient_boosting.py
+python scripts/training/train_histogram_gradient_boosting.py
 ```
 
 It uses the same generated training split and feature representation and stores the fitted estimator at `models/sudoku_histogram_gradient_boosting.joblib`.
@@ -218,7 +228,7 @@ The uniqueness-preserving generator removes a clue only when the puzzle still ha
 ### Evaluate on Unique-Solution Puzzles
 
 ```bash
-python scripts/evaluate_unique_solvers.py
+python scripts/evaluation/evaluate_unique_solvers.py
 ```
 
 Compares the hybrid and classical solvers on identical uniquely solvable puzzles at removal rates of 0.50, 0.60, and 0.65. In addition to validity, the evaluation checks whether each solver output exactly matches the unique stored solution.
@@ -226,7 +236,7 @@ Compares the hybrid and classical solvers on identical uniquely solvable puzzles
 ### Repeat Evaluation Across Seeds
 
 ```bash
-python scripts/evaluate_repeated_solvers.py
+python scripts/evaluation/evaluate_repeated_solvers.py
 ```
 
 Repeats the unique-solution comparison across several independently generated puzzle sets and reports mean, population standard deviation, minimum, and maximum through reusable metric summaries. This distinguishes stable behavior from results that depend strongly on one evaluation seed.
@@ -234,7 +244,7 @@ Repeats the unique-solution comparison across several independently generated pu
 ### Analyze Heuristic Puzzle Difficulty
 
 ```bash
-python scripts/analyze_puzzle_difficulty.py
+python scripts/analysis/analyze_puzzle_difficulty.py
 ```
 
 Analyzes uniquely solvable puzzles using clue count, initial candidate structure, deterministic steps, branching decisions, and classical backtracking effort. The resulting easy, medium, hard, and expert levels are project-specific heuristics and are not official Sudoku difficulty ratings.
@@ -242,7 +252,7 @@ Analyzes uniquely solvable puzzles using clue count, initial candidate structure
 ### Evaluate Greedy ML Without Backtracking
 
 ```bash
-python scripts/evaluate_greedy_solver.py
+python scripts/evaluation/evaluate_greedy_solver.py
 ```
 
 Compares a constraint-aware Greedy ML solver with the Hybrid ML solver on identical unique-solution puzzles. Greedy ML permanently accepts the model's highest-ranked valid candidate and cannot recover from a wrong decision. At removal rates of 0.60 and 0.65, its exact solution rates were 55% and 25%, compared with 100% for the backtracking-enabled hybrid solver.
@@ -264,7 +274,7 @@ This is the project's current Model-only experiment: Sudoku constraints still re
 ### Analyze Model-only Decision Errors
 
 ```bash
-python scripts/analyze_model_only_errors.py
+python scripts/analysis/analyze_model_only_errors.py
 ```
 
 Compares Random Forest and Histogram Gradient Boosting on identical unique-solution puzzles. Each Greedy decision trace is checked against ground truth to locate the first incorrect placement, count correct preceding decisions, measure confidence in the wrong digit, and determine the correct digit's rank.
@@ -292,7 +302,7 @@ Beam Search is bounded model-guided search rather than classical recursive backt
 ### Compare Search Strategies
 
 ```bash
-python scripts/evaluate_beam_search.py
+python scripts/evaluation/evaluate_beam_search.py
 ```
 
 Compares classical solving with Greedy, Beam widths 2, 3, and 4, and Hybrid solving for Random Forest and Histogram Gradient Boosting on identical unique-solution puzzles.
@@ -304,7 +314,7 @@ Histogram Gradient Boosting is consistently faster than Random Forest for model-
 ### Repeat the Beam Search Comparison
 
 ```bash
-python scripts/evaluate_repeated_beam_search.py
+python scripts/evaluation/evaluate_repeated_beam_search.py
 ```
 
 Repeats the comparison across three independent training and evaluation seeds at removal rates of 60% and 65%. The reduced strategy set contains Greedy, Beam widths 2 and 4, Hybrid, and the classical reference.
@@ -314,7 +324,7 @@ At 65% removal, Random Forest Beam 4 reaches `76.67% +/- 9.43%` exact match, whi
 ### Inspect the End-to-End Dataset
 
 ```bash
-python scripts/inspect_end_to_end_dataset.py
+python scripts/dataset/inspect_end_to_end_dataset.py
 ```
 
 Creates full-grid input and target pairs for the end-to-end modeling phase. Inputs contain incomplete 9×9 Sudoku grids, targets contain the corresponding complete solutions, and Boolean masks identify cells the model must predict.
@@ -326,7 +336,7 @@ With 100 source solutions, removal rates of 50%, 60%, and 65%, and a 20% test sp
 ### Evaluate the End-to-End MLP Baseline
 
 ```bash
-python scripts/evaluate_end_to_end_mlp.py
+python scripts/evaluation/evaluate_end_to_end_mlp.py
 ```
 
 Trains a position-conditioned MLP directly from incomplete full grids. The model receives the flattened 9×9 grid and a one-hot target-cell position, then predicts one of nine digits. All 81 positions are evaluated as a batch, while original clues are copied unchanged into the final prediction.
@@ -349,7 +359,7 @@ python -m pip install \
 Inspect the selected environment:
 
 ```bash
-python scripts/check_torch_environment.py
+python scripts/training/check_torch_environment.py
 ```
 
 The end-to-end adapter encodes each grid as a `(10, 9, 9)` tensor. Channel 0 represents empty cells and channels 1–9 represent Sudoku digits. Targets use zero-based classes from 0 to 8, and a Boolean mask identifies originally empty cells.
@@ -357,7 +367,7 @@ The end-to-end adapter encodes each grid as a `(10, 9, 9)` tensor. Channel 0 rep
 ### Evaluate the End-to-End MLP Learning Curve
 
 ```bash
-python scripts/evaluate_end_to_end_learning_curve.py
+python scripts/evaluation/evaluate_end_to_end_learning_curve.py
 ```
 
 Trains separate MLPs on 50, 100, 200, and 400 source solutions while keeping the test partition fixed. The report compares optimization, training and test accuracy, complete-grid quality, and rule violations.
@@ -367,7 +377,7 @@ With 50 source solutions, the MLP reaches 100% training accuracy and solves ever
 ### Analyze Model Probability Rankings
 
 ```bash
-python scripts/evaluate_probability_ranking.py
+python scripts/analysis/evaluate_probability_ranking.py
 ```
 
 Evaluates the Random Forest's complete probability ranking on the hold-out test set. The report compares raw model probabilities with candidate-constrained probabilities using Top-1, Top-2, and Top-3 accuracy, mean reciprocal rank, mean confidence, expected calibration error, and log loss.
@@ -377,7 +387,7 @@ In the current 800-sample evaluation, the correct digit appears in the first two
 ### Compare Feature Groups
 
 ```bash
-python scripts/evaluate_feature_ablation.py
+python scripts/analysis/evaluate_feature_ablation.py
 ```
 
 Trains three separate Random Forest models on the same data while progressively adding grid and position features, candidate indicators, and candidate-interaction features. The experiment measures the contribution of each feature group to ranking and probability quality.
@@ -387,7 +397,7 @@ Without explicit Sudoku features, Top-1 accuracy is 11.38%, approximately the ra
 ### Repeat Feature Ablation
 
 ```bash
-python scripts/evaluate_repeated_feature_ablation.py
+python scripts/analysis/evaluate_repeated_feature_ablation.py
 ```
 
 Repeats the cumulative 82-, 91-, and 118-feature comparison across independently generated training and test splits at removal rates of 0.50, 0.60, and 0.65. The report includes mean ranking metrics, probability-quality metrics, and population standard deviations across seeds.
@@ -397,7 +407,7 @@ The repeated experiment confirms that raw grid features remain near random accur
 ### Evaluate Probability Calibration
 
 ```bash
-python scripts/evaluate_probability_calibration.py
+python scripts/analysis/evaluate_probability_calibration.py
 ```
 
 Compares the full 118-feature Random Forest with Sigmoid and Isotonic probability calibration. Model training, calibration, and final evaluation use independently generated Sudoku datasets. Each method is evaluated with raw probabilities and after Sudoku candidate constraints are applied.
@@ -407,7 +417,7 @@ In the current experiment, Sigmoid calibration reduces raw expected calibration 
 ### Repeat Probability Calibration
 
 ```bash
-python scripts/evaluate_repeated_probability_calibration.py
+python scripts/analysis/evaluate_repeated_probability_calibration.py
 ```
 
 Repeats Raw, Sigmoid, and Isotonic probability evaluation across three random seeds and removal rates from 0.50 to 0.65. Every run uses separate datasets for model training, calibration, and final evaluation.
@@ -417,7 +427,7 @@ Sigmoid consistently improves raw probability quality, but its benefit does not 
 ### Compare Classifiers
 
 ```bash
-python scripts/evaluate_model_comparison.py
+python scripts/analysis/evaluate_model_comparison.py
 ```
 
 Compares Logistic Regression, Random Forest, Extra Trees, and Histogram Gradient Boosting on the same solution-level split and complete 118-feature representation. Both raw and candidate-constrained probability rankings are evaluated.
@@ -427,7 +437,7 @@ In the current single-split experiment, Histogram Gradient Boosting achieves the
 ### Repeat Classifier Comparison
 
 ```bash
-python scripts/evaluate_repeated_model_comparison.py
+python scripts/analysis/evaluate_repeated_model_comparison.py
 ```
 
 Repeats the four-classifier comparison across three seeds and removal rates of 0.50, 0.60, and 0.65. In addition to ranking and probability quality, it reports training time and batch probability-inference time.
@@ -437,7 +447,7 @@ Histogram Gradient Boosting consistently provides the best Top-1 accuracy, MRR, 
 ### Compare Models in the Hybrid Solver
 
 ```bash
-python scripts/evaluate_solver_models.py
+python scripts/evaluation/evaluate_solver_models.py
 ```
 
 Trains all four classifiers and evaluates them inside identical Hybrid solvers on the same unique-solution puzzles. The report measures exact ground-truth match, validity, end-to-end puzzle runtime, deterministic steps, ML decisions, and backtracking.

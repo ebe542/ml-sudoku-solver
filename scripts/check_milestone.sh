@@ -63,8 +63,8 @@ run_check() {
 }
 
 excluded_scripts=(
-    "scripts/train_model.py"
-    "scripts/train_histogram_gradient_boosting.py"
+    "scripts/training/train_model.py"
+    "scripts/training/train_histogram_gradient_boosting.py"
 )
 
 is_excluded() {
@@ -80,7 +80,7 @@ is_excluded() {
     return 1
 }
 
-mapfile -t python_scripts < <(find scripts -maxdepth 1 -type f -name '*.py' | sort)
+mapfile -t python_scripts < <(find scripts -type f -name '*.py' | sort)
 scripts_to_run=()
 
 for script in "${python_scripts[@]}"; do
