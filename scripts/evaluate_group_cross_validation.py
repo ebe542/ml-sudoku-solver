@@ -1,4 +1,4 @@
-from sudoku_ml.analysis.group_cross_validation import (
+from sudoku_ml.evaluation.group_cross_validation import (
     evaluate_group_cross_validation,
 )
 
